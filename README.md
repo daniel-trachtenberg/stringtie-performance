@@ -94,8 +94,8 @@ Many rRNA-depleted (“Total RNA”) libraries capture a mixture of mature and n
 | `-N` | Enables nascent-aware assembly (recommended for any rRNA-depleted or Total RNA library). The primary output GTF contains **only mature** transcript models. |
 | `--nasc` | Same algorithm as `-N`, but also retains nascent intermediates in the GTF output. Nascent records carry `nascentRNA` in the **source** column (field 2) and include a `nascent_parent "<mature_ID>"` attribute that links each nascent transcript to its mature parent. |
 
-Full algorithmic details are described in our pre-print:  
-Shinder I, Pertea G, Hu R, Rudnick Z, Pertea M. [*StringTie 3 improves total-RNA assembly by resolving nascent and mature transcripts.*](https://www.biorxiv.org/content/10.1101/2025.05.21.655404v1) *bioRxiv* (2025). doi:10.1101/2025.05.21.655404
+Full algorithmic details are described in our paper:  
+Shinder I, Pertea G, Hu R, Rudnick Z, Pertea M. [*StringTie3 improves total RNA-seq assembly by resolving nascent and mature transcripts.*](https://doi.org/10.1038/s41592-026-03080-3) *Nature Methods* (2026). doi:10.1038/s41592-026-03080-3
 
 ### Running StringTie on the provided test data
 
@@ -294,6 +294,8 @@ to StringTie as described in the [Running StringTie](#running-stringtie) section
 StringTie is free, open source software released under an <a href="https://opensource.org/licenses/MIT">MIT License</a>.
 
 ## Publications
+Shinder I, Pertea G, Hu R, Rudnick Z, Pertea M [**StringTie3 improves total RNA-seq assembly by resolving nascent and mature transcripts**](https://www.nature.com/articles/s41592-026-03080-3), _Nature Methods_ (2026), doi:10.1038/s41592-026-03080-3
+
 Shumate A, Wong B, Pertea G, Pertea M [**Improved transcriptome assembly using a hybrid of long and short reads with StringTie**](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1009730), _PLOS Computational Biology_ 18, 6 (2022), doi.org/10.1371/journal.pcbi.1009730 
 
 Kovaka S, Zimin AV, Pertea GM, Razaghi R, Salzberg SL, Pertea M  [**Transcriptome assembly from long-read RNA-seq alignments with StringTie2**](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1910-1), _Genome Biology_ 20, 278 (2019),  doi:10.1186/s13059-019-1910-1
