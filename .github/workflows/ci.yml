@@ -9,7 +9,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build optimized binary
         run: make -j"$(nproc)" release
       - name: Run upstream regression suite
@@ -22,7 +22,7 @@ jobs:
           --warmups 0
           --repetitions 1
           --output benchmark-results/ci-smoke.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: benchmark-smoke
