@@ -6,6 +6,11 @@
       "expected": "{data}/short_reads.out_expected.gtf"
     },
     {
+      "name": "short_reads_and_superreads",
+      "args": ["-o", "{output}", "{data}/short_reads_and_superreads.bam"],
+      "expected": "{data}/short_reads_and_superreads.out_expected.gtf"
+    },
+    {
       "name": "short_guided",
       "args": ["-G", "{data}/mix_guides.gff", "-o", "{output}", "{data}/mix_short.bam"],
       "expected": "{data}/short_guided.out_expected.gtf"
@@ -21,10 +26,24 @@
       "expected": "{data}/long_reads_guided.out_expected.gtf"
     },
     {
+      "name": "mixed_reads",
+      "args": ["--mix", "-o", "{output}", "{data}/mix_short.bam", "{data}/mix_long.bam"],
+      "expected": "{data}/mix_reads.out_expected.gtf"
+    },
+    {
       "name": "mixed_reads_guided",
       "args": ["--mix", "-G", "{data}/mix_guides.gff", "-o", "{output}", "{data}/mix_short.bam", "{data}/mix_long.bam"],
       "expected": "{data}/mix_reads_guided.out_expected.gtf"
+    },
+    {
+      "name": "short_reads_N_guided",
+      "args": ["-N", "-G", "{data}/mix_guides.gff", "-o", "{output}", "{data}/mix_short.bam"],
+      "expected": "{data}/mix_short_N_guided.out_expected.gtf"
+    },
+    {
+      "name": "short_reads_nascent_guided",
+      "args": ["--nasc", "-G", "{data}/mix_guides.gff", "-o", "{output}", "{data}/mix_short.bam"],
+      "expected": "{data}/mix_short_nasc_guided.out_expected.gtf"
     }
   ]
 }
-

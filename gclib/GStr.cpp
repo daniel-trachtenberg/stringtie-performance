@@ -338,28 +338,48 @@ bool GStr::operator!=(const char *s) const {
  return (strcmp(my_data->chars, s) != 0);
  }
 
+static inline char* format_unsigned_decimal(char* end, unsigned long long value) {
+ *--end='\0';
+ do {
+   *--end=char('0' + value % 10);
+   value/=10;
+ } while (value);
+ return end;
+}
+
+static inline char* format_signed_decimal(char* end, long long value) {
+ const bool negative=value<0;
+ // Avoid overflowing when value is the minimum signed integer.
+ unsigned long long magnitude=negative
+     ? (unsigned long long)(-(value + 1)) + 1
+     : (unsigned long long)value;
+ char* begin=format_unsigned_decimal(end, magnitude);
+ if (negative) *--begin='-';
+ return begin;
+}
+
 GStr& GStr::append(int i) {
- char buf[20];
- sprintf(buf,"%d",i);
- return append(buf);
+ char buf[24];
+ char* begin=format_signed_decimal(buf+sizeof(buf), i);
+ return append(begin, int(buf+sizeof(buf)-begin-1));
  }
 
 GStr& GStr::append(uint i) {
- char buf[20];
- sprintf(buf,"%u",i);
- return append(buf);
+ char buf[24];
+ char* begin=format_unsigned_decimal(buf+sizeof(buf), i);
+ return append(begin, int(buf+sizeof(buf)-begin-1));
  }
 
 GStr& GStr::append(long l) {
- char buf[20];
- sprintf(buf,"%ld",l);
- return append(buf);
+ char buf[32];
+ char* begin=format_signed_decimal(buf+sizeof(buf), l);
+ return append(begin, int(buf+sizeof(buf)-begin-1));
  }
 
 GStr& GStr::append(unsigned long l) {
- char buf[20];
- sprintf(buf,"%lu", l);
- return append(buf);
+ char buf[32];
+ char* begin=format_unsigned_decimal(buf+sizeof(buf), l);
+ return append(begin, int(buf+sizeof(buf)-begin-1));
  }
 
 GStr& GStr::append(double f) {
@@ -1505,4 +1525,3 @@ void GStr::invalid_index_error(const char *fname) {
     GError("GStr:: %s  - invalid index\n", fname);
 }
 //****************************************************************************
-

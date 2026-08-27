@@ -1,5 +1,6 @@
 #include "GSam.h"
 #include <ctype.h>
+#include <errno.h>
 
 #define _cigOp(c) ((c)&BAM_CIGAR_MASK)
 #define _cigLen(c) ((c)>>BAM_CIGAR_SHIFT)
@@ -120,6 +121,7 @@ void GSamRecord::add_aux(const char* str) {
          }
          else parse_error("unrecognized aux type");
   //this->add_aux(tag, atype, alen, adata);
+  aux_cache_ready=false;
   bam_aux_append(b, tag, atype, alen, adata);
  }//add_aux()
 
@@ -290,13 +292,73 @@ switch (cop) {
 	if (end==0) GError("Error: invalid CIGAR record for %s !\n", bam_get_qname(b));
  }
 
+int GSamRecord::aux_cache_index(const char tag[2]) {
+  const unsigned key=(unsigned((unsigned char)tag[0]) << 8) |
+      unsigned((unsigned char)tag[1]);
+  switch(key) {
+    case ('N' << 8) | 'H': return AUX_NH;
+    case ('H' << 8) | 'I': return AUX_HI;
+    case ('N' << 8) | 'M': return AUX_NM;
+    case ('n' << 8) | 'M': return AUX_nM;
+    case ('Y' << 8) | 'C': return AUX_YC;
+    case ('Y' << 8) | 'K': return AUX_YK;
+    case ('M' << 8) | 'D': return AUX_MD;
+    case ('X' << 8) | 'S': return AUX_XS;
+    case ('t' << 8) | 's': return AUX_ts;
+    case ('Z' << 8) | 'S': return AUX_ZS;
+    case ('Z' << 8) | 'F': return AUX_ZF;
+    default: return -1;
+  }
+}
+
+bool GSamRecord::scan_aux_cache() {
+  if (aux_cache_ready) return true;
+  uint8_t* pending[AUX_CACHE_SIZE] = {};
+  uint8_t* aux_end=b->data+b->l_data;
+  int saved_errno=errno;
+  for (uint8_t* value=bam_aux_first(b); value;) {
+    // bam_aux_next() bounds-checks numeric and array payloads. It regards an
+    // unterminated final string as end-of-list, so validate strings explicitly.
+    errno=0;
+    uint8_t* next=bam_aux_next(b, value);
+    if ((next==NULL && errno==EINVAL) ||
+        ((*value=='Z' || *value=='H') &&
+         memchr(value+1, '\0', aux_end-(value+1))==NULL)) {
+      errno=EINVAL;
+      return false;
+    }
+    int index=aux_cache_index(reinterpret_cast<const char*>(value-2));
+    // bam_aux_get() returns the first matching tag if malformed input has a
+    // duplicate. Retain that behavior even though SAM tags should be unique.
+    if (index>=0 && pending[index]==NULL) pending[index]=value;
+    value=next;
+  }
+  for (int i=0;i<AUX_CACHE_SIZE;i++) aux_cache[i]=pending[i];
+  aux_cache_ready=true;
+  errno=saved_errno;
+  return true;
+}
+
  uint8_t* GSamRecord::find_tag(const char tag[2]) {
-   return bam_aux_get(this->b, tag);
+   int saved_errno=errno;
+   if (!scan_aux_cache()) {
+      // Preserve bam_aux_get() behavior for corrupt records: a valid field
+      // before the damaged payload can still be returned safely.
+      errno=saved_errno;
+      return bam_aux_get(this->b, tag);
+   }
+   int index=aux_cache_index(tag);
+   if (index<0) return bam_aux_get(this->b, tag);
+   if (aux_cache[index]==NULL) errno=ENOENT;
+   return aux_cache[index];
  }
 
  int GSamRecord::remove_tag(const char tag[2]) {
    uint8_t* p=bam_aux_get(this->b, tag);
-   if (p!=NULL) return bam_aux_del(this->b, p);
+   if (p!=NULL) {
+      aux_cache_ready=false;
+      return bam_aux_del(this->b, p);
+   }
    return 0;
  }
 
@@ -308,7 +370,7 @@ switch (cop) {
  }
 
  char GSamRecord::tag_char1(const char tag[2]) { //just the first char from Z type tags
-	uint8_t* s=bam_aux_get(this->b, tag);
+	uint8_t* s=find_tag(tag);
 	if (s==NULL) return 0;
  	int type;
  	type = *s++;
@@ -324,7 +386,7 @@ switch (cop) {
  }
 
  double GSamRecord::tag_float(const char tag[2]) { //get the float value of tag
-    uint8_t *s=bam_aux_get(this->b, tag);;
+    uint8_t *s=find_tag(tag);
     if (s) return ( bam_aux2f(s) );
     return 0;
  }

@@ -133,18 +133,33 @@ int TInputFiles::start() {
 	else {
 		bamfiles=files;
 	}
+	direct_read=(bamfiles.Count()==1);
 	//stringtie multi-BAM input
 	for (int i=0;i<bamfiles.Count();++i) {
-		GSamReader* bamreader=new GSamReader(bamfiles[i].chars(), cram_ref.is_empty() ? NULL : cram_ref.chars());
+		GSamReader* bamreader=new GSamReader(bamfiles[i].chars(),
+				cram_ref.is_empty() ? NULL : cram_ref.chars(), 0,
+				direct_read ? 1 : 0);
 		readers.Add(bamreader);
-		GSamRecord* brec=bamreader->next();
-		if (brec)
-		   recs.Add(new TInputRecord(brec, i));
+		if (!direct_read) {
+			GSamRecord* brec=bamreader->next();
+			if (brec)
+			   recs.Add(new TInputRecord(brec, i));
+		}
 	}
 	return readers.Count();
 }
 
 GSamRecord* TInputFiles::next() {
+	// A single input needs no merge queue. Reuse GSamReader's bam1_t buffer and
+	// this wrapper's coordinate vectors instead of allocating and freeing both
+	// for every alignment.
+	if (direct_read) {
+		if (readers[0]->next(direct_rec)) {
+			direct_rec.uval=0;
+			return &direct_rec;
+		}
+		return NULL;
+	}
 	//must free old current record first
 	delete crec;
 	crec=NULL;
@@ -169,4 +184,3 @@ void TInputFiles::stop() {
 	 }
  }
 }
-

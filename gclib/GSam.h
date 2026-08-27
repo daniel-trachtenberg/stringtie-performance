@@ -22,7 +22,15 @@ enum GSamFileType {
 class GSamRecord: public GSeg {
    friend class GSamReader;
    friend class GSamWriter;
+   enum AuxCacheIndex {
+      AUX_NH, AUX_HI, AUX_NM, AUX_nM, AUX_YC, AUX_YK,
+      AUX_MD, AUX_XS, AUX_ts, AUX_ZS, AUX_ZF, AUX_CACHE_SIZE
+   };
    bam1_t* b=NULL;
+   // Pointers into b->data for the small set of tags StringTie queries on
+   // every alignment. They are populated by one auxiliary-field scan.
+   uint8_t* aux_cache[AUX_CACHE_SIZE] = {};
+   bool aux_cache_ready=false;
    // b->data has the following strings concatenated:
    //  qname (including the terminal \0)
    //  +cigar (each event encoded on 32 bits)
@@ -76,9 +84,27 @@ class GSamRecord: public GSeg {
            const char* qseq=NULL, const char* quals=NULL);
 
    void init(bam1_t* from_b, sam_hdr_t* b_header=NULL, bool adopt_b=false) {
-	   clear();
+	   if (b==from_b && !novel && !adopt_b) {
+	      // Reader-owned bam1_t buffers are refilled in place. Keep the
+	      // coordinate-vector allocations as well; Clear() would otherwise
+	      // free and rebuild them for every alignment.
+	      exons.setCount(0);
+	      juncsdel.setCount(0);
+	      start=0;
+	      end=0;
+	      clipL=0;
+	      clipR=0;
+	      mapped_len=0;
+	      iflags=0;
+#ifdef _DEBUG
+	      GFREE(_cigar);
+	      _read=NULL;
+#endif
+	   }
+	   else clear();
 	   novel=adopt_b;
 	   b=from_b;
+	   aux_cache_ready=false;
 #ifdef _DEBUG
        _cigar=cigar();
        _read=name();
@@ -122,7 +148,9 @@ class GSamRecord: public GSeg {
       return *this;
    }
 
+     static int aux_cache_index(const char tag[2]);
      void setupCoordinates();
+     bool scan_aux_cache();
 
      void clear() {
         if (novel) {
@@ -130,6 +158,7 @@ class GSamRecord: public GSeg {
            //novel=false;
         }
         b=NULL;
+        aux_cache_ready=false;
         exons.Clear();
         juncsdel.Clear();
         mapped_len=0;
@@ -227,6 +256,7 @@ class GSamRecord: public GSeg {
     }
 
     void replace_qname(int id){ // replace the name with an ID
+        aux_cache_ready=false;
         char * p = bam_get_qname(b);
 
         std::string qname = std::to_string(id);
@@ -257,7 +287,12 @@ class GSamRecord: public GSeg {
       GError("SAM parsing error: %s\n", s);
     }
 
-    bam1_t* get_b() { return b; }
+    const bam1_t* get_b() const { return b; }
+    bam1_t* get_b() {
+      // A mutable pointer may be used to resize or rewrite auxiliary data.
+      aux_cache_ready=false;
+      return b;
+    }
 
     void set_mdata(int32_t mtid, int32_t m0pos, //0-based coordinate, -1 if not available
                      int32_t isize=0) { //mate info for current record
@@ -287,19 +322,22 @@ class GSamRecord: public GSeg {
     void set_cigar(const char* str); //converts and adds CIGAR string given in plain SAM text format
     */
     void add_aux(const char* str); //adds one aux field in plain SAM text format (e.g. "NM:i:1")
-    int  add_aux(const char tag[2], char atype, int len, uint8_t *data) {
+    int add_aux(const char tag[2], char atype, int len, uint8_t *data) {
       //IMPORTANT:  strings (Z,H) should include the terminal \0
-     return bam_aux_append(b, tag, atype, len, data);
+      aux_cache_ready=false;
+      return bam_aux_append(b, tag, atype, len, data);
     }
 
     int add_tag(const char tag[2], char atype, int len, uint8_t *data) {
       //same with add_aux()
       //IMPORTANT:  strings type (Z,H) should include the terminal \0
+      aux_cache_ready=false;
       return bam_aux_append(b, tag, atype, len, data);
     }
 
     int add_int_tag(const char tag[2], int64_t val) { //add or update int tag
-    	return bam_aux_update_int(b, tag, val);
+      aux_cache_ready=false;
+      return bam_aux_update_int(b, tag, val);
     }
     int remove_tag(const char tag[2]);
     inline int delete_tag(const char tag[2]) { return remove_tag(tag); }
@@ -367,10 +405,20 @@ class GSamReader {
    sam_hdr_t* hdr;
    bam1_t* b_next; //for light next(GBamRecord& b)
  public:
-   void bopen(const char* filename, const char* cram_refseq=NULL, int32_t cram_req_fields=0) {
+   void bopen(const char* filename, const char* cram_refseq=NULL,
+         int32_t cram_req_fields=0, int bgzf_threads=0) {
 	      hts_file=hts_open(filename, "r");
 	      if (hts_file==NULL)
 	         GError("Error: could not open alignment file %s \n",filename);
+#ifndef NOTHREADS
+	      // Keep one BGZF block decompressing while the caller interprets the
+	      // current alignment. HTSlib's ordered queue preserves input order.
+	      const htsFormat* input_format=hts_get_format(hts_file);
+	      if (bgzf_threads>0 && input_format!=NULL && input_format->compression==bgzf)
+	         hts_set_threads(hts_file, bgzf_threads);
+#else
+	      (void)bgzf_threads;
+#endif
 	      if (hts_file->is_cram) {
 	    	  if (cram_refseq!=NULL) {
 	               hts_set_opt(hts_file, CRAM_OPT_REFERENCE, cram_refseq);
@@ -388,9 +436,9 @@ class GSamReader {
 	      hdr=sam_hdr_read(hts_file);
    }
 
-   GSamReader(const char* fn, const char* cram_ref=NULL,
-		   int32_t required_fields=0):hts_file(NULL),fname(NULL), hdr(NULL), b_next(NULL) {
-      bopen(fn, cram_ref, required_fields);
+   GSamReader(const char* fn, const char* cram_ref=NULL, int32_t required_fields=0,
+         int bgzf_threads=0):hts_file(NULL),fname(NULL), hdr(NULL), b_next(NULL) {
+      bopen(fn, cram_ref, required_fields, bgzf_threads);
    }
 
    sam_hdr_t* header() {

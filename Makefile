@@ -162,7 +162,7 @@ memuse memusage memtrace: stringtie${EXE}
 prof profile: stringtie${EXE}
 nothreads: stringtie${EXE}
 
-stringtie.o : $(GDIR)/GBitVec.h $(GDIR)/GHashMap.hh $(GDIR)/GSam.h
+stringtie.o : tmerge.h $(GDIR)/GBitVec.h $(GDIR)/GHashMap.hh $(GDIR)/GSam.h
 rlink.o : rlink.h tablemaker.h bundle.h $(GDIR)/GSam.h $(GDIR)/GBitVec.h
 bundle.o : bundle.h rlink.h tablemaker.h $(GDIR)/GSam.h
 tmerge.o : rlink.h tmerge.h

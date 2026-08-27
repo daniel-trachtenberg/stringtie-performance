@@ -48,13 +48,15 @@ struct TInputRecord {
 struct TInputFiles {
  protected:
 	TInputRecord* crec;
+	GSamRecord direct_rec;
+	bool direct_read;
 	GStr convert2BAM(GStr& gtf, int idx);
  public:
 	GPVec<GSamReader> readers;
 	GVec<GStr> files; //same order
 	GVec<GStr> tmpfiles; //all the temp files created by this
 	GList<TInputRecord> recs; //next record for each
-	TInputFiles():crec(NULL), readers(true), files(), tmpfiles(),
+	TInputFiles():crec(NULL), direct_rec(), direct_read(false), readers(true), files(), tmpfiles(),
 			recs(true, true, true) { }
 	void Add(const char* fn);
 	int count() { return files.Count(); }

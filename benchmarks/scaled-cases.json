@@ -1,0 +1,14 @@
+{
+  "cases": [
+    {
+      "name": "scaled_short_reads_p1",
+      "args": ["-p", "1", "-o", "{output}", "{data}/mix_short_tile_1024.bam"],
+      "expected": "{data}/mix_short_tile_1024.expected.gtf"
+    },
+    {
+      "name": "scaled_short_reads_p4",
+      "args": ["-p", "4", "-o", "{output}", "{data}/mix_short_tile_1024.bam"],
+      "expected": "{data}/mix_short_tile_1024.expected.gtf"
+    }
+  ]
+}
