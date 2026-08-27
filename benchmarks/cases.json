@@ -1,0 +1,30 @@
+{
+  "cases": [
+    {
+      "name": "short_reads",
+      "args": ["-o", "{output}", "{data}/short_reads.bam"],
+      "expected": "{data}/short_reads.out_expected.gtf"
+    },
+    {
+      "name": "short_guided",
+      "args": ["-G", "{data}/mix_guides.gff", "-o", "{output}", "{data}/mix_short.bam"],
+      "expected": "{data}/short_guided.out_expected.gtf"
+    },
+    {
+      "name": "long_reads",
+      "args": ["-L", "-o", "{output}", "{data}/long_reads.bam"],
+      "expected": "{data}/long_reads.out_expected.gtf"
+    },
+    {
+      "name": "long_reads_guided",
+      "args": ["-L", "-G", "{data}/human-chr19_P.gff", "-o", "{output}", "{data}/long_reads.bam"],
+      "expected": "{data}/long_reads_guided.out_expected.gtf"
+    },
+    {
+      "name": "mixed_reads_guided",
+      "args": ["--mix", "-G", "{data}/mix_guides.gff", "-o", "{output}", "{data}/mix_short.bam", "{data}/mix_long.bam"],
+      "expected": "{data}/mix_reads_guided.out_expected.gtf"
+    }
+  ]
+}
+

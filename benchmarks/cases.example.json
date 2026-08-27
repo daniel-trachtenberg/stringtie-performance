@@ -1,0 +1,10 @@
+{
+  "cases": [
+    {
+      "name": "representative_long_read",
+      "args": ["-L", "-p", "1", "-o", "{output}", "{data}/sample.bam"],
+      "expected": null
+    }
+  ]
+}
+

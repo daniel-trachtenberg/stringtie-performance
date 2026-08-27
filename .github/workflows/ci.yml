@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build optimized binary
+        run: make -j"$(nproc)" release
+      - name: Run upstream regression suite
+        run: make test
+      - name: Run benchmark harness smoke test
+        run: >-
+          python3 scripts/benchmark.py
+          --binary current=./stringtie
+          --manifest benchmarks/cases.json
+          --warmups 0
+          --repetitions 1
+          --output benchmark-results/ci-smoke.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-smoke
+          path: benchmark-results/ci-smoke.json
+

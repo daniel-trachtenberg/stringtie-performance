@@ -1,3 +1,9 @@
+> **Performance research fork:** this repository adds reproducible benchmarking,
+> profiling, and correctness tooling for a 2x runtime-reduction project. Start
+> with [PERFORMANCE.md](PERFORMANCE.md). The source history and license are from
+> the official StringTie project; experimental changes are intended for eventual
+> upstream contribution.
+
 ![alt text](https://img.shields.io/badge/License-MIT-blue.svg "MIT License")
 
 ## StringTie: efficient transcript assembly and quantitation of RNA-Seq data

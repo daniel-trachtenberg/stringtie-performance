@@ -35,7 +35,11 @@ CPPFLAGS = -I./xlibs/include
 # TODO: probably update cram code to make it compile cleanly with -Wc++-compat
 # For testing strict C99 support add -std=c99 -D_XOPEN_SOURCE=600
 #CFLAGS   = -g -Wall -O2 -pedantic -std=c99 -D_XOPEN_SOURCE=600
-CFLAGS   = -g -Wall -msse4.1 -mssse3 -mpopcnt -O2 -fvisibility=hidden -D HAVE_LIBDEFLATE -D HAVE_LIBLZMA
+CFLAGS   = -g -Wall -O2 -fvisibility=hidden -D HAVE_LIBDEFLATE -D HAVE_LIBLZMA
+CC_MACHINE := $(shell $(CC) -dumpmachine 2>/dev/null)
+ifneq (,$(filter x86_64% i%86%,$(CC_MACHINE)))
+CFLAGS   += -msse4.1 -mssse3 -mpopcnt
+endif
 
 EXTRA_CFLAGS_PIC = -fpic
 
