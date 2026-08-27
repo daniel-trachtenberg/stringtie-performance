@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build-and-test:
@@ -26,4 +27,3 @@ jobs:
         with:
           name: benchmark-smoke
           path: benchmark-results/ci-smoke.json
-
