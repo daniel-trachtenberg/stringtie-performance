@@ -2,6 +2,7 @@
 #include "GSam.h"
 #include "GStr.h"
 #include "GHashMap.hh"
+#include "read_pair_index.h"
 
 extern bool mergeMode;
 
@@ -227,6 +228,15 @@ struct CReadAln:public GSeg {
 		return len;
 	}
 	~CReadAln() { if(mergeMode) {delete tinfo;} }
+	void resetForReuse(char newstrand, short int newnh, int rstart, int rend, TAlnInfo* tif) {
+		start=rstart; end=rend; strand=newstrand; nh=newnh;
+		len=0; read_count=0; unitig=false; longread=false;
+		pair_count.setCount(0); pair_idx.setCount(0); segs.setCount(0);
+		juncs.setCount(0);
+		tinfo=tif;
+		aligned_polyT=aligned_polyA=unaligned_polyT=unaligned_polyA=0;
+		sort_tiebreaker=0;
+	}
 };
 
 struct GReadAlnData {
@@ -326,6 +336,8 @@ struct BundleData {
  GStr refseq; //reference sequence name
  char* gseq; //actual genomic sequence for the bundle
  GList<CReadAln> readlist;
+ // Recycle only small alignment objects; bound retained storage per bundle.
+ GPVec<CReadAln> spare_reads;
  GVec<float> bpcov[3];   // this needs to be changed to a more inteligent way of storing the data
  GList<CJunction> junction;
  GPVec<GffObj> keepguides; //list of guides in this bundle (+ synthetic nascents if genNascent)
@@ -392,12 +404,28 @@ struct BundleData {
 
  bool evalReadAln(GReadAlnData& alndata, char& strand);
 
+ CReadAln* newRead(char strand, short int nh, int rstart, int rend, TAlnInfo* tif) {
+	if (!spare_reads.Count()) return new CReadAln(strand, nh, rstart, rend, tif);
+	CReadAln* read=spare_reads.Pop();
+	read->resetForReuse(strand, nh, rstart, rend, tif);
+	return read;
+ }
+
  void Clear() {
 	keepguides.Clear();
 	ptfs.Clear();
 	pred.Clear();
 	pred.setSorted(false);
-	readlist.Clear();
+	while (readlist.Count()) {
+		CReadAln* read=readlist.Pop();
+		if (spare_reads.Count()<4096 && read->segs.Capacity()<=64 &&
+		    read->juncs.Capacity()<=64 && read->pair_idx.Capacity()<=64 &&
+		    read->pair_count.Capacity()<=64) {
+			if (mergeMode) delete read->tinfo;
+			read->resetForReuse(0,0,0,0,NULL);
+			spare_reads.Add(read);
+		} else delete read;
+	}
 	readlist.setSorted(false);
 	for(int i=0;i<3;i++) {
 		bpcov[i].Clear();
@@ -424,5 +452,5 @@ struct BundleData {
 };
 
 void processRead(int currentstart, int currentend, BundleData& bdata,
-		 GHash<int>& hashread, GReadAlnData& alndata,bool ovlpguide);
+		 ReadPairIndex& hashread, GReadAlnData& alndata,bool ovlpguide);
 		 //GSamRecord& brec, char strand, int nh, int hi);

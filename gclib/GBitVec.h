@@ -397,6 +397,20 @@ public:
     return !(*this == RHS);
   }
 
+  // Equivalent to ((*this & RHS) == RHS), without allocating an intersection.
+  // As in operator==, words beyond the shorter vector are treated as zero.
+  bool contains(const GBitVec &RHS) const {
+    uint ThisWords = NumBitWords(size());
+    uint RHSWords = NumBitWords(RHS.size());
+    uint imax = GMIN(ThisWords, RHSWords);
+    uint i = 0;
+    for (; i != imax; ++i)
+      if (RHS.fBits[i] & ~fBits[i]) return false;
+    for (; i != RHSWords; ++i)
+      if (RHS.fBits[i]) return false;
+    return true;
+  }
+
   // Intersection, union, disjoint union.
   GBitVec &operator&=(const GBitVec &RHS) {
     uint ThisWords = NumBitWords(size());

@@ -434,7 +434,7 @@ const char* ERR_BAM_SORT="\nError: the input alignment file is not sorted!\n";
  // --- input processing
 
 
- GHash<int> hashread;      //read_name:pos:hit_index => readlist index
+ ReadPairIndex hashread;  //read_name, position, hit_index => readlist index
  GList<GffObj>* guides=NULL; //list of transcripts on a specific reference
  GList<GPtFeature>* refptfs=NULL; //list of point-features on a specific reference
  int currentstart=0, currentend=0;
@@ -522,7 +522,7 @@ if (ballgown)
 		 dbg_waln(brec);
 #endif
 		 refseqName=brec->refName();
-		 xstrand=brec->spliceStrand(); // tagged strand gets priority
+		 xstrand=brec->assemblyStrand(); // tagged strand gets priority
 		 if(xstrand=='.' && (fr_strand || rf_strand)) { // set strand if stranded library
 			 if(brec->isPaired()) { // read is paired
 				 if(brec->pairOrder()==1) { // first read in pair
@@ -575,9 +575,9 @@ if (ballgown)
 		 prev_pos=pos;
 		 if (skipGseq) continue;
 		 alncounts[gseq_id]++;
-		 nh=brec->tag_int("NH");
+		 nh=brec->tag_int(GSamRecord::AUX_NH);
 		 if (nh==0) nh=1;
-		 hi=brec->tag_int("HI");
+		 hi=brec->tag_int(GSamRecord::AUX_HI);
 		 if (mergeMode) {
 		    //tinfo=new TAlnInfo(brec->name(), brec->tag_int("ZF"));
 			 tinfo=new TAlnInfo(brec->name(), brec->uval);

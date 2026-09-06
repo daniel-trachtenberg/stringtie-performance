@@ -1,0 +1,16 @@
+diff --git a/rlink.cpp b/rlink.cpp
+index 662dcfc..6467893 100644
+--- a/rlink.cpp
++++ b/rlink.cpp
+@@ -15,6 +15,10 @@
+ //extern GffNames* gseqNames;
+ extern FILE *c_out;         // file handle for the input transcripts that are fully covered by reads
+ extern GFastMutex printCovMutex;
++#ifdef NOTHREADS
++// The serial build still reaches two output lock sites in this translation unit.
++GFastMutex printCovMutex;
++#endif
+-
++
+ extern bool trim;
+ extern bool eonly;

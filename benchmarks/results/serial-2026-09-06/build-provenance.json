@@ -1,0 +1,60 @@
+{
+  "baseline": {
+    "public_release": "StringTie v3.0.3",
+    "public_git_commit": "3436ad6dfd0ffc806a94086cf747ac6ff2b0dc19",
+    "build_tree_commit": "6e129005a05909be2bcac56aa336d98c836ac3a0",
+    "source_tree": "build/serial-baseline-src",
+    "differences_from_public": "Repository documentation/benchmark scaffolding and ARM portability guard in htslib/Makefile only; no StringTie algorithm-source changes. Runtime linked to the same dependency archives as candidate.",
+    "serial_compatibility_patch": "In rlink.cpp after extern GFastMutex printCovMutex: #ifdef NOTHREADS; GFastMutex printCovMutex; #endif. Same definition also in candidate. This resolves two existing output lock references and creates no thread.",
+    "binary": "build/serial-original/stringtie",
+    "binary_sha256": "3eb2665c19ad375bc6a3d636832165be7b6d24e5bb8bc59d71384b618f12d214"
+  },
+  "candidate": {
+    "base_commit": "95fee2752a1ab734db0cbfe4fdd50368cd5b2805",
+    "source_sha256": {
+      "Makefile": "b397e6510b7aa4373c8d622d218b028a3ed6feb9bfe52dc8cfa3291a5db75dfd",
+      "bundle.h": "3eccba9b5ad469d8b2e19acc55552d3b2c0c10dccede76cfc00401e7226c14a7",
+      "gclib/GBitVec.h": "07cf82e8400ffbc0ff669990d0c187058d3001c7f7cc9cf80767332442d3497c",
+      "gclib/GSam.cpp": "092af95de7bb96b8812a5e10d52603cf8f16f9197341e29e83bd86230fa1089c",
+      "gclib/GSam.h": "3069a77b3e39097e427e1f18766c2e7264e7ff60a6bb4e3a1a0ece67197271d8",
+      "read_pair_index.h": "c4edfb615aeaac49b44a8b62b063e142f69b399d7db5abc795f4cbe3181ea75a",
+      "rlink.cpp": "aa9a7b3265e6318289ef664e0588350067225142a7fd95434a09139112c8dc80",
+      "stringtie.cpp": "e167fbcb95eb5caf44a9bc1219d240ffb11e7e59f7f7346cc0f3677ed377ac4e",
+      "tmerge.cpp": "82d4e034e537380f6c32239cf453b39bd51d6352c62f0d2372f66002d4b7a203",
+      "scripts/benchmark_serial.py": "7035c35501e9c7240d6194f8e88eb7dff0a4fd83ff5b63ccedc22d2846c2ebec"
+    },
+    "binary": "build/serial-optimized/stringtie",
+    "binary_sha256": "89a891aa574027d34efe13edac96b7741903db04cf91a07b2daa2d2f8c6302e1",
+    "clean_rebuild": true,
+    "source_delivery": "Optimization source is included in the same Git commit as this report; compare against base_commit.",
+    "publication_whitespace_note": "A single trailing blank line was removed from read_pair_index.h and scripts/benchmark_serial.py for publication. source_sha256 records the measured snapshot before this nonfunctional cleanup."
+  },
+  "build": {
+    "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101), arm64-apple-darwin25.6.0",
+    "common_codegen_flags": "-g -O3 -DNDEBUG -Wall -Wextra -I. -I./gclib -I./htslib -fsigned-char -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -std=c++11 -fno-strict-aliasing -fno-exceptions -fno-rtti -Wno-implicit-fallthrough -Wno-class-memaccess -DNOTHREADS",
+    "candidate_dependency_only_flags": "-MMD -MP (writes make dependencies; no code-generation change)",
+    "link_flags": "-g; same four static dependency archives; -lz -lm",
+    "build_parallelism": "-j4 is used only for compilation, never for benchmark execution",
+    "objects": "gclib/GBase.o gclib/GArgs.o gclib/GStr.o gclib/GSam.o gclib/gdna.o gclib/codons.o gclib/GFastaIndex.o gclib/GFaSeqGet.o gclib/gff.o bundle.o rlink.o tablemaker.o tmerge.o stringtie.o",
+    "shared_archive_source": "htslib",
+    "shared_archives_sha256": {
+      "libhts.a": "f649edbe23abb88e7e8c0374a74e8a7c2ed70ce99b7a712ebe2857c8b2656bc8",
+      "xlibs/lib/libbz2.a": "f8a9cdd90a6427876117ad8a86c403ac161f7c4e0bdbc547a8551dd27e2fcbcd",
+      "xlibs/lib/liblzma.a": "0d8fd969b7da5bcecd56f5ccab58df1e7653a9e3e25427bb79c1441e3eee70f9",
+      "xlibs/lib/libdeflate.a": "afa2f8430901fa11e010a0ff2368d66973fd20f8a155d7ad0084e8bdbb734031"
+    },
+    "libdeflate_git_commit": "78051988f96dc8d8916310d8b24021f01bd9e102",
+    "libdeflate_release": "1.23",
+    "library_note": "Both final executables were relinked from their respective serial object files against these byte-identical static archives, rather than merely libraries of the same version."
+  },
+  "validation": {
+    "upstream_expected_gtf_cases": 9,
+    "all_baseline_and_candidate_cases_pass": true,
+    "sanitizer_test_readme": "tests/performance/README.md",
+    "benchmark_report": "report.json",
+    "timing_environment": "Sequential runs on same Apple M1 Max; no agent compilations or other benchmark jobs overlapped final measured runs. No profiling during timing.",
+    "thread_verification": "Source-audited NOTHREADS builds plus separate sampled probes. No observed additional threads; source contains no requested HTS/BGZF worker initialization in this mode.",
+    "limitations": "Synthetic tiled short-read benchmark; not universal or long-read 2x proof. OS thread samples are not continuous resource enforcement."
+  },
+  "publication_note": "Local absolute paths were replaced with repository-relative paths for publication. Measurements, binary/input hashes and observations are unchanged. Generated GTF/log files and binaries are not included."
+}

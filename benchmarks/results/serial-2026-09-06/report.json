@@ -1,0 +1,814 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "started_utc": "2026-09-06T20:57:25.185457+00:00",
+  "host": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "system": "Darwin",
+    "release": "25.6.0",
+    "machine": "arm64",
+    "python": "3.10.0 (v3.10.0:b494f5935c, Oct  4 2021, 14:59:19) [Clang 12.0.5 (clang-1205.0.22.11)]",
+    "logical_cpu_count": 10,
+    "processor": "arm",
+    "machdep.cpu.brand_string": "Apple M1 Max",
+    "hw.model": "MacBookPro18,4",
+    "hw.memsize": "68719476736",
+    "hw.physicalcpu": "10",
+    "hw.logicalcpu": "10",
+    "environment": {
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8"
+    }
+  },
+  "configuration": {
+    "repetitions": 7,
+    "warmups": 1,
+    "seed": 20260906,
+    "extra_args": [],
+    "stringtie_p_argument": 1,
+    "thread_counter": "Darwin proc_pidinfo(PROC_PIDTASKINFO).pti_threadnum",
+    "normalization": "remove only lines starting with #; preserve all other bytes and order",
+    "schedule": "seeded random first label, then alternate first label for successive paired repetitions",
+    "timing": "perf_counter around spawn through wait4; hashing excluded; warmups/probes excluded",
+    "thread_verification_scope": "separate untimed runs; sampling cannot exclude threads shorter than the sampling interval; use audited NOTHREADS builds"
+  },
+  "files": {
+    "baseline": {
+      "path": "build/serial-original/stringtie",
+      "size_bytes": 1970264,
+      "sha256": "3eb2665c19ad375bc6a3d636832165be7b6d24e5bb8bc59d71384b618f12d214"
+    },
+    "candidate": {
+      "path": "build/serial-optimized/stringtie",
+      "size_bytes": 1972584,
+      "sha256": "89a891aa574027d34efe13edac96b7741903db04cf91a07b2daa2d2f8c6302e1"
+    },
+    "input": {
+      "path": "benchmarks/data/mix_short_tile_1024.bam",
+      "size_bytes": 637771893,
+      "sha256": "9df7f162d14bcab93727b7ab31893ccdd92539d0d6f61ee4412cca721d61d3d8"
+    }
+  },
+  "runs": [
+    {
+      "label": "candidate",
+      "run_id": "thread_probe-01",
+      "command": [
+        "build/serial-optimized/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/thread_probe-01-candidate.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/thread_probe-01-candidate.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/thread_probe-01-candidate.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/thread_probe-01-candidate.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 5.519931583003199,
+      "user_seconds": 5.279947,
+      "system_seconds": 0.203974,
+      "cpu_seconds": 5.483921,
+      "peak_rss_bytes": 7159808,
+      "voluntary_context_switches": 3,
+      "involuntary_context_switches": 2123,
+      "thread_probe": {
+        "sample_interval_seconds": 0.002,
+        "observations_by_thread_count": {
+          "1": 1885
+        },
+        "samples": 1885,
+        "minimum_observed": 1,
+        "maximum_observed": 1,
+        "first_sample_seconds": 0.0031493750029767398,
+        "last_sample_seconds": 5.516897666002478
+      },
+      "phase": "thread_probe",
+      "repetition": 1,
+      "global_order": 1,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "baseline",
+      "run_id": "thread_probe-01",
+      "command": [
+        "build/serial-original/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/thread_probe-01-baseline.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/thread_probe-01-baseline.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/thread_probe-01-baseline.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/thread_probe-01-baseline.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 11.538052665997384,
+      "user_seconds": 11.192232,
+      "system_seconds": 0.289767,
+      "cpu_seconds": 11.481999,
+      "peak_rss_bytes": 7208960,
+      "voluntary_context_switches": 1,
+      "involuntary_context_switches": 4265,
+      "thread_probe": {
+        "sample_interval_seconds": 0.002,
+        "observations_by_thread_count": {
+          "1": 3933
+        },
+        "samples": 3933,
+        "minimum_observed": 1,
+        "maximum_observed": 1,
+        "first_sample_seconds": 0.0018662910006241873,
+        "last_sample_seconds": 11.535033457999816
+      },
+      "phase": "thread_probe",
+      "repetition": 1,
+      "global_order": 2,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "candidate",
+      "run_id": "warmup-01",
+      "command": [
+        "build/serial-optimized/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/warmup-01-candidate.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/warmup-01-candidate.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/warmup-01-candidate.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/warmup-01-candidate.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 5.479610957998375,
+      "user_seconds": 5.267392,
+      "system_seconds": 0.187266,
+      "cpu_seconds": 5.454658,
+      "peak_rss_bytes": 7127040,
+      "voluntary_context_switches": 2,
+      "involuntary_context_switches": 2053,
+      "phase": "warmup",
+      "repetition": 1,
+      "global_order": 3,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "baseline",
+      "run_id": "warmup-01",
+      "command": [
+        "build/serial-original/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/warmup-01-baseline.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/warmup-01-baseline.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/warmup-01-baseline.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/warmup-01-baseline.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 11.563660582996818,
+      "user_seconds": 11.212515,
+      "system_seconds": 0.286981,
+      "cpu_seconds": 11.499496,
+      "peak_rss_bytes": 7208960,
+      "voluntary_context_switches": 2,
+      "involuntary_context_switches": 4612,
+      "phase": "warmup",
+      "repetition": 1,
+      "global_order": 4,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "candidate",
+      "run_id": "measurement-01",
+      "command": [
+        "build/serial-optimized/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/measurement-01-candidate.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/measurement-01-candidate.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/measurement-01-candidate.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/measurement-01-candidate.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 5.5391350829995645,
+      "user_seconds": 5.317835,
+      "system_seconds": 0.186751,
+      "cpu_seconds": 5.504586,
+      "peak_rss_bytes": 7618560,
+      "voluntary_context_switches": 2,
+      "involuntary_context_switches": 2249,
+      "phase": "measurement",
+      "repetition": 1,
+      "global_order": 5,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "baseline",
+      "run_id": "measurement-01",
+      "command": [
+        "build/serial-original/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/measurement-01-baseline.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/measurement-01-baseline.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/measurement-01-baseline.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/measurement-01-baseline.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 11.693837250000797,
+      "user_seconds": 11.348935,
+      "system_seconds": 0.291326,
+      "cpu_seconds": 11.640261,
+      "peak_rss_bytes": 7438336,
+      "voluntary_context_switches": 3,
+      "involuntary_context_switches": 4474,
+      "phase": "measurement",
+      "repetition": 1,
+      "global_order": 6,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "baseline",
+      "run_id": "measurement-02",
+      "command": [
+        "build/serial-original/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/measurement-02-baseline.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/measurement-02-baseline.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/measurement-02-baseline.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/measurement-02-baseline.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 11.667007000000012,
+      "user_seconds": 11.319226,
+      "system_seconds": 0.288045,
+      "cpu_seconds": 11.607271,
+      "peak_rss_bytes": 7946240,
+      "voluntary_context_switches": 2,
+      "involuntary_context_switches": 4723,
+      "phase": "measurement",
+      "repetition": 2,
+      "global_order": 7,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "candidate",
+      "run_id": "measurement-02",
+      "command": [
+        "build/serial-optimized/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/measurement-02-candidate.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/measurement-02-candidate.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/measurement-02-candidate.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/measurement-02-candidate.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 5.531621500002075,
+      "user_seconds": 5.32761,
+      "system_seconds": 0.179757,
+      "cpu_seconds": 5.507367,
+      "peak_rss_bytes": 7176192,
+      "voluntary_context_switches": 2,
+      "involuntary_context_switches": 2126,
+      "phase": "measurement",
+      "repetition": 2,
+      "global_order": 8,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "candidate",
+      "run_id": "measurement-03",
+      "command": [
+        "build/serial-optimized/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/measurement-03-candidate.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/measurement-03-candidate.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/measurement-03-candidate.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/measurement-03-candidate.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 5.547275083001296,
+      "user_seconds": 5.333965,
+      "system_seconds": 0.189297,
+      "cpu_seconds": 5.523262,
+      "peak_rss_bytes": 7176192,
+      "voluntary_context_switches": 2,
+      "involuntary_context_switches": 2143,
+      "phase": "measurement",
+      "repetition": 3,
+      "global_order": 9,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "baseline",
+      "run_id": "measurement-03",
+      "command": [
+        "build/serial-original/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/measurement-03-baseline.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/measurement-03-baseline.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/measurement-03-baseline.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/measurement-03-baseline.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 11.730310917002498,
+      "user_seconds": 11.380427,
+      "system_seconds": 0.297616,
+      "cpu_seconds": 11.678042999999999,
+      "peak_rss_bytes": 7471104,
+      "voluntary_context_switches": 2,
+      "involuntary_context_switches": 4461,
+      "phase": "measurement",
+      "repetition": 3,
+      "global_order": 10,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "baseline",
+      "run_id": "measurement-04",
+      "command": [
+        "build/serial-original/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/measurement-04-baseline.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/measurement-04-baseline.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/measurement-04-baseline.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/measurement-04-baseline.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 11.77330620900102,
+      "user_seconds": 11.40895,
+      "system_seconds": 0.288942,
+      "cpu_seconds": 11.697892000000001,
+      "peak_rss_bytes": 7487488,
+      "voluntary_context_switches": 3,
+      "involuntary_context_switches": 4859,
+      "phase": "measurement",
+      "repetition": 4,
+      "global_order": 11,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "candidate",
+      "run_id": "measurement-04",
+      "command": [
+        "build/serial-optimized/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/measurement-04-candidate.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/measurement-04-candidate.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/measurement-04-candidate.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/measurement-04-candidate.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 5.595550334001018,
+      "user_seconds": 5.366931,
+      "system_seconds": 0.192628,
+      "cpu_seconds": 5.559559,
+      "peak_rss_bytes": 7716864,
+      "voluntary_context_switches": 2,
+      "involuntary_context_switches": 2235,
+      "phase": "measurement",
+      "repetition": 4,
+      "global_order": 12,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "candidate",
+      "run_id": "measurement-05",
+      "command": [
+        "build/serial-optimized/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/measurement-05-candidate.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/measurement-05-candidate.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/measurement-05-candidate.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/measurement-05-candidate.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 5.550277999998798,
+      "user_seconds": 5.335911,
+      "system_seconds": 0.18834199999999998,
+      "cpu_seconds": 5.524253,
+      "peak_rss_bytes": 7143424,
+      "voluntary_context_switches": 2,
+      "involuntary_context_switches": 2142,
+      "phase": "measurement",
+      "repetition": 5,
+      "global_order": 13,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "baseline",
+      "run_id": "measurement-05",
+      "command": [
+        "build/serial-original/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/measurement-05-baseline.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/measurement-05-baseline.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/measurement-05-baseline.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/measurement-05-baseline.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 11.764660124998045,
+      "user_seconds": 11.417045,
+      "system_seconds": 0.288315,
+      "cpu_seconds": 11.70536,
+      "peak_rss_bytes": 8060928,
+      "voluntary_context_switches": 1,
+      "involuntary_context_switches": 4704,
+      "phase": "measurement",
+      "repetition": 5,
+      "global_order": 14,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "baseline",
+      "run_id": "measurement-06",
+      "command": [
+        "build/serial-original/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/measurement-06-baseline.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/measurement-06-baseline.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/measurement-06-baseline.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/measurement-06-baseline.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 11.763608542001748,
+      "user_seconds": 11.414926,
+      "system_seconds": 0.29103,
+      "cpu_seconds": 11.705955999999999,
+      "peak_rss_bytes": 7372800,
+      "voluntary_context_switches": 7,
+      "involuntary_context_switches": 4521,
+      "phase": "measurement",
+      "repetition": 6,
+      "global_order": 15,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "candidate",
+      "run_id": "measurement-06",
+      "command": [
+        "build/serial-optimized/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/measurement-06-candidate.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/measurement-06-candidate.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/measurement-06-candidate.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/measurement-06-candidate.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 5.573989124997752,
+      "user_seconds": 5.360197,
+      "system_seconds": 0.189993,
+      "cpu_seconds": 5.550190000000001,
+      "peak_rss_bytes": 7077888,
+      "voluntary_context_switches": 2,
+      "involuntary_context_switches": 2059,
+      "phase": "measurement",
+      "repetition": 6,
+      "global_order": 16,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "candidate",
+      "run_id": "measurement-07",
+      "command": [
+        "build/serial-optimized/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/measurement-07-candidate.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/measurement-07-candidate.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/measurement-07-candidate.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/measurement-07-candidate.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 5.5588032090017805,
+      "user_seconds": 5.34341,
+      "system_seconds": 0.19225,
+      "cpu_seconds": 5.53566,
+      "peak_rss_bytes": 7159808,
+      "voluntary_context_switches": 2,
+      "involuntary_context_switches": 2008,
+      "phase": "measurement",
+      "repetition": 7,
+      "global_order": 17,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    },
+    {
+      "label": "baseline",
+      "run_id": "measurement-07",
+      "command": [
+        "build/serial-original/stringtie",
+        "-p",
+        "1",
+        "benchmarks/data/mix_short_tile_1024.bam",
+        "-o",
+        "benchmark-results/serial-shared-libs-2026-09-06/measurement-07-baseline.gtf"
+      ],
+      "output": "benchmark-results/serial-shared-libs-2026-09-06/measurement-07-baseline.gtf",
+      "stdout": "benchmark-results/serial-shared-libs-2026-09-06/measurement-07-baseline.stdout.log",
+      "stderr": "benchmark-results/serial-shared-libs-2026-09-06/measurement-07-baseline.stderr.log",
+      "exit_code": 0,
+      "wall_seconds": 11.794880875000672,
+      "user_seconds": 11.43771,
+      "system_seconds": 0.29384699999999997,
+      "cpu_seconds": 11.731556999999999,
+      "peak_rss_bytes": 7438336,
+      "voluntary_context_switches": 3,
+      "involuntary_context_switches": 4962,
+      "phase": "measurement",
+      "repetition": 7,
+      "global_order": 18,
+      "gtf": {
+        "sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+        "data_rows": 50176,
+        "normalized_bytes": 6605336
+      },
+      "correctness": "pass"
+    }
+  ],
+  "expected_normalized_gtf_sha256": "d2be13d11ea4ad96c3a0c73e5aa53ee340e468478d72f75943a33b54a61cb4c8",
+  "summary": {
+    "baseline": {
+      "wall_seconds": {
+        "median": 11.763608542001748,
+        "min": 11.667007000000012,
+        "max": 11.794880875000672,
+        "values_in_run_order": [
+          11.693837250000797,
+          11.667007000000012,
+          11.730310917002498,
+          11.77330620900102,
+          11.764660124998045,
+          11.763608542001748,
+          11.794880875000672
+        ]
+      },
+      "user_seconds": {
+        "median": 11.40895,
+        "min": 11.319226,
+        "max": 11.43771,
+        "values_in_run_order": [
+          11.348935,
+          11.319226,
+          11.380427,
+          11.40895,
+          11.417045,
+          11.414926,
+          11.43771
+        ]
+      },
+      "system_seconds": {
+        "median": 0.29103,
+        "min": 0.288045,
+        "max": 0.297616,
+        "values_in_run_order": [
+          0.291326,
+          0.288045,
+          0.297616,
+          0.288942,
+          0.288315,
+          0.29103,
+          0.29384699999999997
+        ]
+      },
+      "cpu_seconds": {
+        "median": 11.697892000000001,
+        "min": 11.607271,
+        "max": 11.731556999999999,
+        "values_in_run_order": [
+          11.640261,
+          11.607271,
+          11.678042999999999,
+          11.697892000000001,
+          11.70536,
+          11.705955999999999,
+          11.731556999999999
+        ]
+      },
+      "peak_rss_bytes": {
+        "median": 7471104,
+        "min": 7372800,
+        "max": 8060928,
+        "values_in_run_order": [
+          7438336,
+          7946240,
+          7471104,
+          7487488,
+          8060928,
+          7372800,
+          7438336
+        ]
+      }
+    },
+    "candidate": {
+      "wall_seconds": {
+        "median": 5.550277999998798,
+        "min": 5.531621500002075,
+        "max": 5.595550334001018,
+        "values_in_run_order": [
+          5.5391350829995645,
+          5.531621500002075,
+          5.547275083001296,
+          5.595550334001018,
+          5.550277999998798,
+          5.573989124997752,
+          5.5588032090017805
+        ]
+      },
+      "user_seconds": {
+        "median": 5.335911,
+        "min": 5.317835,
+        "max": 5.366931,
+        "values_in_run_order": [
+          5.317835,
+          5.32761,
+          5.333965,
+          5.366931,
+          5.335911,
+          5.360197,
+          5.34341
+        ]
+      },
+      "system_seconds": {
+        "median": 0.189297,
+        "min": 0.179757,
+        "max": 0.192628,
+        "values_in_run_order": [
+          0.186751,
+          0.179757,
+          0.189297,
+          0.192628,
+          0.18834199999999998,
+          0.189993,
+          0.19225
+        ]
+      },
+      "cpu_seconds": {
+        "median": 5.524253,
+        "min": 5.504586,
+        "max": 5.559559,
+        "values_in_run_order": [
+          5.504586,
+          5.507367,
+          5.523262,
+          5.559559,
+          5.524253,
+          5.550190000000001,
+          5.53566
+        ]
+      },
+      "peak_rss_bytes": {
+        "median": 7176192,
+        "min": 7077888,
+        "max": 7716864,
+        "values_in_run_order": [
+          7618560,
+          7176192,
+          7176192,
+          7716864,
+          7143424,
+          7077888,
+          7159808
+        ]
+      }
+    },
+    "wall_speedup_ratio_of_medians": 2.1194629425777043,
+    "wall_time_reduction_percent": 52.818236171480606,
+    "cpu_speedup_ratio_of_medians": 2.117551821033541,
+    "per_pair_wall_speedups": [
+      2.111130542003017,
+      2.1091477426638168,
+      2.114607756328524,
+      2.104047949932869,
+      2.1196524075011367,
+      2.1104469847716993,
+      2.1218381783870943
+    ],
+    "median_of_per_pair_wall_speedups": 2.111130542003017
+  },
+  "finished_utc": "2026-09-06T21:00:01.300566+00:00",
+  "publication_note": "Local absolute paths were replaced with repository-relative paths for publication. Measurements, binary/input hashes and observations are unchanged. Generated GTF/log files and binaries are not included."
+}

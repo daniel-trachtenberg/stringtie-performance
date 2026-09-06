@@ -5,6 +5,14 @@ least 2x without changing transcript reconstruction or abundance results.
 Performance claims must compare the same workload, compiler, flags, thread
 count, and machine and must pass the upstream regression suite.
 
+For the professor's **one-OS-thread** comparison, use
+`scripts/benchmark_serial.py` and the prepared serial binaries described in
+[the serial optimization report](SERIAL_OPTIMIZATION_REPORT.md). `-p 1` alone
+does not enforce one OS thread. Earlier results using implicit BGZF workers
+must not be presented as algorithm-only speedups. The legacy quick-start
+below builds the current checkout; naming that build `baseline` does not make
+it an upstream-release baseline.
+
 ## Quick start
 
 ```bash
@@ -88,4 +96,3 @@ xcrun xctrace record --template 'Time Profiler' \
 
 Trace bundles are ignored and should not be committed. On Linux, use `perf
 record`/`perf report` with the same optimized, symbol-bearing binary.
-

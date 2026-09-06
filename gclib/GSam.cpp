@@ -315,37 +315,60 @@ bool GSamRecord::scan_aux_cache() {
   if (aux_cache_ready) return true;
   uint8_t* pending[AUX_CACHE_SIZE] = {};
   uint8_t* aux_end=b->data+b->l_data;
-  int saved_errno=errno;
-  for (uint8_t* value=bam_aux_first(b); value;) {
-    // bam_aux_next() bounds-checks numeric and array payloads. It regards an
-    // unterminated final string as end-of-list, so validate strings explicitly.
-    errno=0;
-    uint8_t* next=bam_aux_next(b, value);
-    if ((next==NULL && errno==EINVAL) ||
-        ((*value=='Z' || *value=='H') &&
-         memchr(value+1, '\0', aux_end-(value+1))==NULL)) {
-      errno=EINVAL;
-      return false;
+  uint8_t* field=bam_get_aux(b);
+  while (aux_end-field>2) {
+    uint8_t* value=field+2;
+    uint8_t* next=value+1;
+    unsigned size=0;
+    switch (*value) {
+      case 'A': case 'c': case 'C': size=1; break;
+      case 's': case 'S': size=2; break;
+      case 'i': case 'I': case 'f': size=4; break;
+      case 'd': size=8; break;
+      case 'Z': case 'H': {
+        // Locate the terminator once; this both validates and skips strings.
+        uint8_t* nul=(uint8_t*)memchr(next, '\0', aux_end-next);
+        if (!nul) { errno=EINVAL; return false; }
+        next=nul+1;
+        break;
+      }
+      case 'B': {
+        // Keep HTSlib's exact array-subtype and overflow handling for this
+        // less common case. The scalar/string path needs no errno accesses.
+        int saved_errno=errno;
+        errno=0;
+        uint8_t* following=bam_aux_next(b, value);
+        if (!following && errno==EINVAL) return false;
+        errno=saved_errno;
+        next=following ? following-2 : aux_end;
+        break;
+      }
+      default: errno=EINVAL; return false;
+    }
+    if (size) {
+      if (size_t(aux_end-next)<size) { errno=EINVAL; return false; }
+      next+=size;
     }
     int index=aux_cache_index(reinterpret_cast<const char*>(value-2));
     // bam_aux_get() returns the first matching tag if malformed input has a
     // duplicate. Retain that behavior even though SAM tags should be unique.
     if (index>=0 && pending[index]==NULL) pending[index]=value;
-    value=next;
+    field=next;
   }
   for (int i=0;i<AUX_CACHE_SIZE;i++) aux_cache[i]=pending[i];
   aux_cache_ready=true;
-  errno=saved_errno;
   return true;
 }
 
  uint8_t* GSamRecord::find_tag(const char tag[2]) {
-   int saved_errno=errno;
-   if (!scan_aux_cache()) {
+   if (!aux_cache_ready) {
+     int saved_errno=errno;
+     if (!scan_aux_cache()) {
       // Preserve bam_aux_get() behavior for corrupt records: a valid field
       // before the damaged payload can still be returned safely.
       errno=saved_errno;
       return bam_aux_get(this->b, tag);
+     }
    }
    int index=aux_cache_index(tag);
    if (index<0) return bam_aux_get(this->b, tag);

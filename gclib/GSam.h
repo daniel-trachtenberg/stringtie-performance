@@ -4,6 +4,7 @@
 #include "GList.hh"
 #include "htslib/kstring.h"
 #include "htslib/sam.h"
+#include "htslib/hts_endian.h"
 #include "htslib/cram.h"
 #include <iostream>
 #include <ostream>
@@ -22,15 +23,38 @@ enum GSamFileType {
 class GSamRecord: public GSeg {
    friend class GSamReader;
    friend class GSamWriter;
+ public:
    enum AuxCacheIndex {
       AUX_NH, AUX_HI, AUX_NM, AUX_nM, AUX_YC, AUX_YK,
       AUX_MD, AUX_XS, AUX_ts, AUX_ZS, AUX_ZF, AUX_CACHE_SIZE
    };
+ private:
    bam1_t* b=NULL;
    // Pointers into b->data for the small set of tags StringTie queries on
    // every alignment. They are populated by one auxiliary-field scan.
    uint8_t* aux_cache[AUX_CACHE_SIZE] = {};
    bool aux_cache_ready=false;
+   uint8_t* common_tag(AuxCacheIndex index) {
+      if (!aux_cache_ready && !scan_aux_cache()) {
+         static const char names[AUX_CACHE_SIZE][2] = {
+            {'N','H'}, {'H','I'}, {'N','M'}, {'n','M'}, {'Y','C'}, {'Y','K'},
+            {'M','D'}, {'X','S'}, {'t','s'}, {'Z','S'}, {'Z','F'}
+         };
+         return bam_aux_get(b, names[index]);
+      }
+      return aux_cache[index];
+   }
+   static int64_t common_int(const uint8_t* s) {
+      switch (*s) {
+         case 'c': return le_to_i8(s+1);
+         case 'C': return s[1];
+         case 's': return le_to_i16(s+1);
+         case 'S': return le_to_u16(s+1);
+         case 'i': return le_to_i32(s+1);
+         case 'I': return le_to_u32(s+1);
+         default: return 0;
+      }
+   }
    // b->data has the following strings concatenated:
    //  qname (including the terminal \0)
    //  +cigar (each event encoded on 32 bits)
@@ -49,6 +73,38 @@ class GSamRecord: public GSeg {
    };
    sam_hdr_t* b_hdr=NULL;
  public:
+   // Assembly-only typed lookups. Unlike the general string-tag APIs these
+   // return values without defining errno, which assembly callers never read.
+   // The general APIs retain their HTSlib-compatible errno behavior.
+   int64_t tag_int(AuxCacheIndex index, int nfval=0) {
+      uint8_t* s=common_tag(index);
+      return s ? common_int(s) : nfval;
+   }
+   double tag_float(AuxCacheIndex index) {
+      uint8_t* s=common_tag(index);
+      if (!s) return 0;
+      if (*s=='d') return le_to_double(s+1);
+      if (*s=='f') return le_to_float(s+1);
+      return common_int(s);
+   }
+   char* tag_str(AuxCacheIndex index) {
+      uint8_t* s=common_tag(index);
+      return s && (*s=='Z' || *s=='H') ? (char*)(s+1) : NULL;
+   }
+   char tag_char1(AuxCacheIndex index) {
+      uint8_t* s=common_tag(index);
+      return s && (*s=='A' || *s=='Z') ? s[1] : 0;
+   }
+   char assemblyStrand() {
+      char c=tag_char1(AUX_XS);
+      if (c==0) {
+         char m=tag_char1(AUX_ts);
+         if (m=='+' || m=='-') {
+            c=(b->core.flag & BAM_FREVERSE) ? (m=='+' ? '-' : '+') : m;
+         }
+      }
+      return c=='+' || c=='-' ? c : '.';
+   }
    GVec<GSeg> exons; //coordinates will be 1-based
    GVec<GSeg> juncsdel; // delete coordinates around introns
    int clipL=0; //soft clipping data, as seen in the CIGAR string

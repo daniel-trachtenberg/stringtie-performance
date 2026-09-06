@@ -63,7 +63,10 @@ for i in ${!arrmsg[@]}; do
    fi
  fi
  echo "Running: ../stringtie ${arrparms[$i]} -o $fout $fin"
- ../stringtie ${arrparms[$i]} -o $fout $fin
+ if ! ../stringtie ${arrparms[$i]} -o $fout $fin; then
+   echo "Error: stringtie failed on $fin"
+   exit 1
+ fi
  if [ ! -f $fout ]; then
    echo "Error: file $fout not created! Failed running stringtie on $fin"
    exit 1
@@ -72,6 +75,6 @@ for i in ${!arrmsg[@]}; do
     echo "  OK."
  else
    echo "Error: test failed, output $fout different than expected ($fcmp)!"
-   #exit 1
+   exit 1
  fi
 done

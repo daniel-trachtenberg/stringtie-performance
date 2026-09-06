@@ -152,7 +152,7 @@ ifndef NOTHREADS
 endif
 
 %.o : %.cpp
-	${CXX} ${CXXFLAGS} -c $< -o $@
+	${CXX} ${CXXFLAGS} -MMD -MP -c $< -o $@
 
 OBJS += bundle.o rlink.o tablemaker.o tmerge.o
 
@@ -162,7 +162,7 @@ memuse memusage memtrace: stringtie${EXE}
 prof profile: stringtie${EXE}
 nothreads: stringtie${EXE}
 
-stringtie.o : tmerge.h $(GDIR)/GBitVec.h $(GDIR)/GHashMap.hh $(GDIR)/GSam.h
+stringtie.o : tmerge.h bundle.h read_pair_index.h $(GDIR)/GBitVec.h $(GDIR)/GHashMap.hh $(GDIR)/GSam.h
 rlink.o : rlink.h tablemaker.h bundle.h $(GDIR)/GSam.h $(GDIR)/GBitVec.h
 bundle.o : bundle.h rlink.h tablemaker.h $(GDIR)/GSam.h
 tmerge.o : rlink.h tmerge.h
@@ -187,6 +187,7 @@ test demo tests: stringtie${EXE}
 #	echo $(PATH)
 clean:
 	${RM} stringtie${EXE} stringtie.o*  $(OBJS)
+	${RM} stringtie.d $(OBJS:.o=.d)
 	${RM} core.*
 clean-all: clean
 	cd ${HTSLIB} && ./build_lib.sh clean
@@ -195,4 +196,7 @@ clean-htslib:
 ##allclean cleanAll cleanall:
 ##	cd ${BAM} && make clean
 ##	${RM} stringtie${EXE} stringtie.o* $(OBJS)
+
+# Track transitive headers, including the layout shared by all BundleData users.
+-include $(OBJS:.o=.d) stringtie.d
 ##	${RM} core.*

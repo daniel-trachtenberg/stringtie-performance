@@ -1,5 +1,13 @@
 # Performance baseline
 
+> Historical result, superseded for the professor's single-thread comparison.
+> The thread numbers below are `-p` arguments, not OS-thread counts: upstream
+> `-p 1` used a reader plus an assembly worker. Use the
+> [verified serial report](../SERIAL_OPTIMIZATION_REPORT.md) and its
+> [published evidence and rebuild recipe](results/serial-2026-09-06/README.md).
+> The legacy build command below builds the current checkout; its label does
+> not select the historical revision.
+
 Baseline captured on 2026-08-26 PDT from commit
 `6e129005a05909be2bcac56aa336d98c836ac3a0` (StringTie 3.0.3). The release
 binary was freshly built with `-O3 -DNDEBUG` and has SHA-256
@@ -13,13 +21,13 @@ The primary fixture is a deterministic 1,024-fold coordinate translation of
 independent bundles and is 608 MiB on this host. The fixture SHA-256 is
 `9df7f162d14bcab93727b7ab31893ccdd92539d0d6f61ee4412cca721d61d3d8`.
 
-| Threads | Median | Mean | p05-p95 | CV | 2x target |
+| `-p` argument | Median | Mean | p05-p95 | CV | 2x target |
 | ---: | ---: | ---: | ---: | ---: | ---: |
 | 1 | 9.4583 s | 9.4766 s | 9.4020-9.5720 s | 0.73% | <=4.7291 s |
 | 4 | 9.5424 s | 9.5455 s | 9.4017-9.6644 s | 1.08% | <=4.7712 s |
 
-Each result uses one warmup followed by seven measured runs. The one-thread
-result is the optimization baseline. Four threads were 0.89% slower, so this
+Each result uses one warmup followed by seven measured runs. The `-p 1`
+result was the historical baseline. `-p 4` was 0.89% slower, so this
 fixture also exposes serial ingest, scheduling, and output work rather than
 hiding it behind worker-count changes.
 

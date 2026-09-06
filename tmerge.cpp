@@ -137,8 +137,7 @@ int TInputFiles::start() {
 	//stringtie multi-BAM input
 	for (int i=0;i<bamfiles.Count();++i) {
 		GSamReader* bamreader=new GSamReader(bamfiles[i].chars(),
-				cram_ref.is_empty() ? NULL : cram_ref.chars(), 0,
-				direct_read ? 1 : 0);
+				cram_ref.is_empty() ? NULL : cram_ref.chars());
 		readers.Add(bamreader);
 		if (!direct_read) {
 			GSamRecord* brec=bamreader->next();

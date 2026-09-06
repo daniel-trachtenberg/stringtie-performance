@@ -15,6 +15,9 @@
 //extern GffNames* gseqNames;
 extern FILE *c_out;         // file handle for the input transcripts that are fully covered by reads
 extern GFastMutex printCovMutex;
+#ifdef NOTHREADS
+GFastMutex printCovMutex;
+#endif
 
 extern bool trim;
 extern bool eonly;
@@ -53,9 +56,6 @@ extern FILE* f_out;
 extern GStr label;
 
 extern bool havePtFeatures; // if there is feature data to use
-
-static GStr _id("", 256); //to prevent repeated reallocation for each parsed read
-//not thread safe -- to only be used in processRead() as long as that's the unique producer
 
 // Stable coordinate comparator helper: preserve pre-sort order on ties.
 // We only compare start, then end; if equal, we fall back to the original
@@ -657,7 +657,7 @@ float check_first_exon_polyT(GSamRecord& brec) {
 
 
 void processRead(int currentstart, int currentend, BundleData& bdata,
-		 GHash<int>& hashread,  GReadAlnData& alndata,bool ovlpguide) { // some false positives should be eliminated here in order to break the bundle
+		 ReadPairIndex& hashread,  GReadAlnData& alndata,bool ovlpguide) { // some false positives should be eliminated here in order to break the bundle
 	GSamRecord& brec=*(alndata.brec);			   // bam record
 	if((longreads || (mixedMode && brec.uval)) && ((brec.flags() & BAM_FSECONDARY) || (brec.flags() & BAM_FSUPPLEMENTARY))) return;
 	GList<CReadAln>& readlist = bdata.readlist;    // list of reads gathered so far
@@ -747,9 +747,9 @@ void processRead(int currentstart, int currentend, BundleData& bdata,
 	}
 
 
-	double nm=(double)brec.tag_int("NM"); // read mismatch
+	double nm=(double)brec.tag_int(GSamRecord::AUX_NM); // read mismatch
 	double unitig_cov=0;
-	unitig_cov=brec.tag_float("YK");
+	unitig_cov=brec.tag_float(GSamRecord::AUX_YK);
 
 	bool match=false;  // true if current read matches a previous read
 	int n=readlist.Count()-1;
@@ -784,7 +784,7 @@ void processRead(int currentstart, int currentend, BundleData& bdata,
 			for (int i=0;i<brec.exons.Count();i++) len+=brec.exons[i].len();
 			if(len<mintranscriptlen) return;
 		}
-		readaln=new CReadAln(strand, nh, brec.start, brec.end, alndata.tinfo);
+		readaln=bdata.newRead(strand, nh, brec.start, brec.end, alndata.tinfo);
 
         if(longr) {
             // counts per read entry: 1 if evidence present, else 0
@@ -835,7 +835,7 @@ void processRead(int currentstart, int currentend, BundleData& bdata,
 						jend+=brec.juncsdel[i-1].end;
 					}
 				}
-				CJunction* nj=junction.AddIfNew(new CJunction(jstart, jend, jstrand), true);
+				CJunction* nj=add_junction(jstart, jend, junction, jstrand);
 				if (alndata.juncs.Count())
 					nj->guide_match=alndata.juncs[i-1]->guide_match;
 				if (nj) {
@@ -889,7 +889,7 @@ void processRead(int currentstart, int currentend, BundleData& bdata,
 	  	bdata.end=currentend;
 	}
 
-	float rdcount=(float)brec.tag_int("YC"); // alignment count
+	float rdcount=(float)brec.tag_int(GSamRecord::AUX_YC); // alignment count
 	if(!rdcount) rdcount=1;
 	if(unitig_cov) {
 		rdcount=unitig_cov;
@@ -901,7 +901,7 @@ void processRead(int currentstart, int currentend, BundleData& bdata,
 
 	// store the mismatch count per junction so that I can eliminate it later
 	if(!nm) {
-		nm=(double)brec.tag_int("nM"); // paired mismatch : big problem with STAR alignments
+		nm=(double)brec.tag_int(GSamRecord::AUX_nM); // paired mismatch : big problem with STAR alignments
 		if(brec.isPaired()) nm/=2;
 	}
 	if(brec.clipL) nm++;
@@ -917,7 +917,7 @@ void processRead(int currentstart, int currentend, BundleData& bdata,
 		else if(nm && readlist[n]->juncs.Count()) {
 			if(brec.clipL && readlist[n]->segs[0].len()<junctionsupport+brec.clipL) mismatch=true; // penalize mismatch that's too close to ss
 			else if(brec.clipR && readlist[n]->segs.Last().len()<junctionsupport+brec.clipR) mismatch=true;
-			else if(mismatch_anchor(readlist[n],brec.tag_str("MD"),currentstart,brec.get_b())) mismatch=true; // this line was not initially present in vs1 or vs3 but I noticed it doesn't do any difference in real data, so far it only helped with the SR in simulation -> I might want to take it out
+			else if(mismatch_anchor(readlist[n],brec.tag_str(GSamRecord::AUX_MD),currentstart,brec.get_b())) mismatch=true; // this line was not initially present in vs1 or vs3 but I noticed it doesn't do any difference in real data, so far it only helped with the SR in simulation -> I might want to take it out
 		}
 
 		for(int i=0;i<readlist[n]->juncs.Count();i++) { // if read is PacBio I might want to increase the mismatch fraction, although the nm only gets used for longintrons
@@ -936,14 +936,10 @@ void processRead(int currentstart, int currentend, BundleData& bdata,
 	//if (brec.isProperlyPaired()) {  //only consider mate pairing data if mates  are properly paired
 		int pairstart=brec.mate_start();
 		if (currentstart<=pairstart) { // if pairstart is in a previous bundle I don't care about it
-			//GStr readname();
-			//GStr id(brec.name(), 16); // init id with readname
-			_id.assign(brec.name()); //assign can be forced to prevent shrinking of the string
 			if(pairstart<=readstart) { // if I've seen the pair already <- I might not have seen it yet because the pair starts at the same place
-				_id+='-';_id+=pairstart;
-				_id+=".=";_id+=hi; // (!) this suffix actually speeds up the hash by improving distribution!
-				const int* np=hashread[_id.chars()];
-				if(np) { // the pair was stored --> why wouldn't it be? : only in the case that the pair starts at the same position
+				const int mate_index=hashread.Take(brec.name(), pairstart, hi);
+				const int* np=&mate_index;
+				if(mate_index>=0) { // the pair was stored --> why wouldn't it be? : only in the case that the pair starts at the same position
 					if(readlist[*np]->nh>nh && !nomulti) rdcount=float(1)/readlist[*np]->nh;
 					bool notfound=true;
 					for(int i=0;i<readlist[*np]->pair_idx.Count();i++)
@@ -969,13 +965,10 @@ void processRead(int currentstart, int currentend, BundleData& bdata,
 						readlist[n]->pair_idx.Add(i);
 						readlist[n]->pair_count.Add(rdcount);
 					}
-					hashread.Remove(_id.chars());
 				}
 			}
 			else { // I might still see the pair in the future
-				_id+='-';_id+=readstart; // this is the correct way
-				_id+=".=";_id+=hi;
-				hashread.Add(_id.chars(), n);
+				hashread.Add(brec.name(), readstart, hi, n);
 			}
 		}
 	} //<-- if mate is mapped on the same chromosome
@@ -2877,18 +2870,18 @@ GBitVec traverse_dfs(int s,int g,CGraphnode *node,CGraphnode *sink,GBitVec paren
 	//fprintf(stderr,"Traverse node %d gno=%d\n",node->nodeid,gno);
 
 	if(visit[node->nodeid]) {
-		node->parentpat = node->parentpat | parents;
+		node->parentpat |= parents;
 		for(int n=0;n<gno;n++) {
 			if(parents[n]) // add node's children to all parents of node
-				no2gnode[s][g][n]->childpat = no2gnode[s][g][n]->childpat | node->childpat;
+				no2gnode[s][g][n]->childpat |= node->childpat;
 			else if(node->childpat[n])
-				no2gnode[s][g][n]->parentpat = no2gnode[s][g][n]->parentpat | node->parentpat;
+				no2gnode[s][g][n]->parentpat |= node->parentpat;
 		}
 	}
 	else {
 		node->childpat.resize(gno+edgeno);
 		node->parentpat.resize(gno+edgeno);
-		node->parentpat = node->parentpat | parents;
+		node->parentpat |= parents;
 		visit[node->nodeid]=true;
 		parents[node->nodeid]=1; // add the node to the parents
 
@@ -4351,9 +4344,37 @@ int create_graph(int refstart,int s,int g,CBundle *bundle,GPVec<CBundlenode>& bn
 }
 
 
+// Scratch storage is owned by one bundle and reused for every fragment.  No
+// contents survive a read-pattern lookup, only the allocated capacity does.
+struct CFragmentPatternScratch {
+	GVec<int> rgno, pgno;
+	GVec<GVec<int> > rnodes, pnodes;
+	GBitVec rpat, ppat, conflictpattn;
+	GVec<uint> seen[2];
+	uint generation[2];
+	CFragmentPatternScratch(int negative_nodes, int positive_nodes):
+		rnodes(0), pnodes(0) {
+		seen[0].Resize(negative_nodes,0);
+		seen[1].Resize(positive_nodes,0);
+		generation[0]=generation[1]=0;
+	}
+	GVec<int>* reset_nodes(GVec<GVec<int> >& nodes, int count) {
+		if(nodes.Count()<count) nodes.Resize(count);
+		for(int i=0;i<count;i++) nodes[i].setCount(0);
+		return count ? &nodes[0] : NULL;
+	}
+	uint next_generation(int s) {
+		if(++generation[s]==0) {
+			for(int i=0;i<seen[s].Count();i++) seen[s][i]=0;
+			generation[s]=1;
+		}
+		return generation[s];
+	}
+};
+
 void get_read_pattern(int s, float readcov,GVec<int> &rgno, float rprop,GVec<int> *rnode,
 		GList<CReadAln>& readlist,int n,GVec<int> *readgroup,GVec<int>& merge,GVec<int> *group2bundle,
-		GVec<CGraphinfo> **bundle2graph,GPVec<CGraphnode> **no2gnode) {
+		GVec<CGraphinfo> **bundle2graph,GPVec<CGraphnode> **no2gnode,CFragmentPatternScratch& scratch) {
 
 	int lastgnode=-1;
 	int lastngraph=-1;
@@ -4361,7 +4382,7 @@ void get_read_pattern(int s, float readcov,GVec<int> &rgno, float rprop,GVec<int
 	int k=0; // need to keep track of coordinates already added to coverages of graphnodes
 	int kmer=KMER-1; //f1
 
-	GIntHash<bool> hashnode;
+	uint generation=scratch.next_generation(s);
 
 	for(int i=0;i<readgroup[n].Count();i++) { // how can a read be associated to multiple groups? ---> If it is spliced
 		int gr=readgroup[n][i];
@@ -4369,8 +4390,8 @@ void get_read_pattern(int s, float readcov,GVec<int> &rgno, float rprop,GVec<int
 		readgroup[n][i]=gr;
 		int bnode=group2bundle[2*s][gr]; // group was associated to bundle
 		if(bnode>-1 && bundle2graph[s][bnode].Count()) { // group has a bundle node associated with it and bundle was processed
-			if(!hashnode[bnode]) {
-				hashnode.Add(bnode,true);
+			if(scratch.seen[s][bnode]!=generation) {
+				scratch.seen[s][bnode]=generation;
 				int nbnode=bundle2graph[s][bnode].Count(); // number of nodes in bundle
 				int j=0;
 
@@ -4869,7 +4890,7 @@ CTransfrag *update_abundance(int s,int g,int gno,GIntHash<int>&gpos,GBitVec& pat
 
 void get_fragment_pattern(GList<CReadAln>& readlist,int n, int np,float readcov,GVec<int> *readgroup,GVec<int>& merge, GVec<int> *group2bundle,
 		GVec<CGraphinfo> **bundle2graph,GVec<int> *graphno,GVec<int> *edgeno, GIntHash<int> **gpos,GPVec<CGraphnode> **no2gnode,
-		GPVec<CTransfrag> **transfrag,CTreePat ***tr2no,GPVec<CGroup> &group) {
+		GPVec<CTransfrag> **transfrag,CTreePat ***tr2no,GPVec<CGroup> &group,CFragmentPatternScratch& scratch) {
 
 	/*fprintf(stderr,"get fragment for read[%d]:%d-%d-%d-%d-%f with pair[%d] and longread=%d and exons: ",n,readlist[n]->start,readlist[n]->end,int(readlist[n]->strand),readlist[n]->nh,readlist[n]->read_count,np,readlist[n]->longread);
 	for(int i=0;i<readlist[n]->segs.Count();i++) fprintf(stderr," %d-%d",readlist[n]->segs[i].start,readlist[n]->segs[i].end);
@@ -4948,22 +4969,24 @@ void get_fragment_pattern(GList<CReadAln>& readlist,int n, int np,float readcov,
 
 	for(int s=0;s<2;s++) if(rprop[s]){
 
-		GVec<int> rgno;
-		GVec<int> *rnode=new GVec<int>[readgroup[n].Count()];
+		GVec<int>& rgno=scratch.rgno;
+		rgno.setCount(0);
+		GVec<int> *rnode=scratch.reset_nodes(scratch.rnodes,readgroup[n].Count());
 		if(readlist[n]->nh)
-			get_read_pattern(s, readcov,rgno,rprop[s],rnode,readlist,n,readgroup,merge,group2bundle,bundle2graph,no2gnode);
+			get_read_pattern(s, readcov,rgno,rprop[s],rnode,readlist,n,readgroup,merge,group2bundle,bundle2graph,no2gnode,scratch);
 
-		GVec<int> pgno;
+		GVec<int>& pgno=scratch.pgno;
+		pgno.setCount(0);
 		GVec<int> *pnode=NULL;
 		// get pair pattern if pair exists and it hasn't been deleted
 		if(np>-1 && readlist[np]->nh) {
-			pnode=new GVec<int>[readgroup[np].Count()];
-			get_read_pattern(s,readcov,pgno,rprop[s],pnode,readlist,np,readgroup,merge,group2bundle,bundle2graph,no2gnode);
+			pnode=scratch.reset_nodes(scratch.pnodes,readgroup[np].Count());
+			get_read_pattern(s,readcov,pgno,rprop[s],pnode,readlist,np,readgroup,merge,group2bundle,bundle2graph,no2gnode,scratch);
 		}
 
 
-		GBitVec rpat;
-		GBitVec ppat;
+		GBitVec& rpat=scratch.rpat;
+		GBitVec& ppat=scratch.ppat;
 		int usedp=0;
 
 		for(int r=0;r<rgno.Count();r++) {
@@ -5068,15 +5091,16 @@ void get_fragment_pattern(GList<CReadAln>& readlist,int n, int np,float readcov,
 
 				// check if there is a conflict of patterns
 				CGraphnode *gnode=no2gnode[s][rgno[r]][pnode[p][0]];
-				GBitVec conflictpattn=gnode->parentpat;
+				GBitVec& conflictpattn=scratch.conflictpattn;
+				conflictpattn=gnode->parentpat;
 				conflictpattn[pnode[p][0]]=1;
 
-				if((conflictpattn & rpat)==rpat) { // there isn't a conflict -> pair parents should contain read pattern
+				if(conflictpattn.contains(rpat)) { // there isn't a conflict -> pair parents should contain read pattern
 					i=0;
 					if(pnode[p][0]==rnode[r].Last()) // read and pair share a node
 						i++;
 					while(i<pnode[p].Count()) { rnode[r].Add(pnode[p][i]);i++;}
-					rpat=rpat|ppat;
+					rpat|=ppat;
                         update_abundance(s,rgno[r],graphno[s][rgno[r]],gpos[s][rgno[r]],rpat,rprop[s]*readcov,rnode[r],transfrag,tr2no,
                                         no2gnode[s][rgno[r]],rstart, rend,readlist[n]->unitig,readlist[n]->longread,
                                         readlist[n]->aligned_polyT, readlist[n]->aligned_polyA,
@@ -5131,8 +5155,6 @@ void get_fragment_pattern(GList<CReadAln>& readlist,int n, int np,float readcov,
                             readlist[n]->aligned_polyT, readlist[n]->aligned_polyA,
                             readlist[n]->unaligned_polyT, readlist[n]->unaligned_polyA);
 			}
-		delete [] rnode;
-		if(pnode) delete [] pnode;
 	}
 
 }
@@ -5441,7 +5463,7 @@ void process_srfrag(CTransfrag *u,GPVec<CTransfrag>& transfrag,GPVec<CGraphnode>
 		for(int j=0;j<no2gnode[n]->trf.Count();j++) if(transfrag[no2gnode[n]->trf[j]]!=u) {
 			int t=no2gnode[n]->trf[j];
 			if(transfrag[t]->nodes[0]<=n && transfrag[t]->nodes.Last()>=u->nodes.Last()) { // transcript includes u
-				if((transfrag[t]->pattern & u->pattern) == u->pattern) { // t contains super-read
+				if(transfrag[t]->pattern.contains(u->pattern)) { // t contains super-read
 					available-=transfrag[t]->abundance;
 					if(available<epsilon) {
 						available=0;
@@ -5504,7 +5526,7 @@ void process_srfrag(CTransfrag *u,GPVec<CTransfrag>& transfrag,GPVec<CGraphnode>
 					}
 				}
 			}
-			else if((transfrag[t]->pattern & u->pattern) == transfrag[t]->pattern) { // compatible transcripts; transcript is included in u
+			else if(u->pattern.contains(transfrag[t]->pattern)) { // compatible transcripts; transcript is included in u
 				seltrfrag.Add(transfrag[t]);
 			}
 
@@ -5536,7 +5558,7 @@ void process_srfrag(CTransfrag *u,GPVec<CTransfrag>& transfrag,GPVec<CGraphnode>
 							transfrag[t]->nodes.Insert(j,u->nodes[i]);
 						}
 					}
-					transfrag[t]->pattern = transfrag[t]->pattern | u->pattern;
+					transfrag[t]->pattern |= u->pattern;
 					available -= transfrag[t]->abundance;
 					if(available<epsilon) {
 						available=0;
@@ -5549,7 +5571,7 @@ void process_srfrag(CTransfrag *u,GPVec<CTransfrag>& transfrag,GPVec<CGraphnode>
 						int n=u->nodes[i];
 						for(int j=0;j<no2gnode[n]->trf.Count();j++) if(transfrag[no2gnode[n]->trf[j]]->nodes[0]==n) { // transfrag starts at node
 							int t=no2gnode[n]->trf[j];
-							if((transfrag[t]->pattern & u->pattern) == transfrag[t]->pattern) {
+						if(u->pattern.contains(transfrag[t]->pattern)) {
 								seltrfrag.Add(transfrag[t]);
 							}
 						}
@@ -6030,13 +6052,13 @@ void process_transfrags(int s, int gno,int edgeno,GPVec<CGraphnode>& no2gnode,GP
 				for(int t2=0; t2<keeptrf.Count();t2++) {
 
 					if(transfrag[keeptrf[t2].t]->guide>0 && !isNascent(guides[transfrag[keeptrf[t2].t]->guide-1])) { // t2 is guide
-						if(transfrag[t1]->guide<=0 && ((transfrag[t1]->pattern & transfrag[keeptrf[t2].t]->pattern) == transfrag[t1]->pattern)) {
+						if(transfrag[t1]->guide<=0 && transfrag[keeptrf[t2].t]->pattern.contains(transfrag[t1]->pattern)) {
 							//fprintf(stderr,"Transfrag %d eliminated due to contained in guide transfrag %d\n",t1,keeptrf[t2].t);
 							transfrag[t1]->guide=0;
 							included=true;
 							break;
 						}
-						else if(!transfrag[t1]->guide && ((transfrag[t1]->pattern & transfrag[keeptrf[t2].t]->pattern) == transfrag[keeptrf[t2].t]->pattern)) { // guide is included in transfrag
+						else if(!transfrag[t1]->guide && transfrag[t1]->pattern.contains(transfrag[keeptrf[t2].t]->pattern)) { // guide is included in transfrag
 							int i=0;
 							bool contain=true;
 							int leftdist=0;
@@ -6410,13 +6432,13 @@ void process_transfrags(int s, int gno,int edgeno,GPVec<CGraphnode>& no2gnode,GP
 					for(int t2=0; t2<keeptrf.Count();t2++) {
 
 						if(srfrag[keeptrf[t2].t]->guide>0 && !isNascent(guides[srfrag[keeptrf[t2].t]->guide-1])) {
-							if(srfrag[t1]->guide<=0 && ((srfrag[t1]->pattern & srfrag[keeptrf[t2].t]->pattern) == srfrag[t1]->pattern)) {
+							if(srfrag[t1]->guide<=0 && srfrag[keeptrf[t2].t]->pattern.contains(srfrag[t1]->pattern)) {
 								//fprintf(stderr,"Transfrag %d eliminated due to contained in guide transfrag %d\n",t1,keeptrf[t2].t);
 								srfrag[t1]->guide=0;
 								included=true;
 								break;
 							}
-							else if(!srfrag[t1]->guide && ((srfrag[t1]->pattern & srfrag[keeptrf[t2].t]->pattern) == srfrag[keeptrf[t2].t]->pattern)) { // guide is included in transfrag
+							else if(!srfrag[t1]->guide && srfrag[t1]->pattern.contains(srfrag[keeptrf[t2].t]->pattern)) { // guide is included in transfrag
 								int i=0;
 								bool contain=true;
 								int leftdist=0;
@@ -6718,7 +6740,7 @@ void process_transfrags(int s, int gno,int edgeno,GPVec<CGraphnode>& no2gnode,GP
 
 
 	// add edges between disconnected parent-child nodes
-	for(int t=0;t<transfrag.Count();t++) allpat=allpat | transfrag[t]->pattern;
+	for(int t=0;t<transfrag.Count();t++) allpat |= transfrag[t]->pattern;
 
 	if(isnascent) {
 		abundleft.cAdd(0.0);
@@ -6920,7 +6942,7 @@ void process_merge_transfrags(int gno,GPVec<CGraphnode>& no2gnode, GPVec<CMTrans
 	for(int t1=1;t1<mgt.Count();t1++)
 		for(int t2=0;t2<t1;t2++) {
 			if(!mgt[t1]->transfrag->real &&
-					((mgt[t2]->transfrag->pattern & mgt[t1]->transfrag->pattern) == mgt[t1]->transfrag->pattern)) { // t1 is included in t2, and it's not a guide
+					mgt[t2]->transfrag->pattern.contains(mgt[t1]->transfrag->pattern)) { // t1 is included in t2, and it's not a guide
 				mgt[t2]->read.Add(mgt[t1]->read);
 				mgt[t2]->transfrag->abundance+=mgt[t1]->transfrag->abundance;
 				mgt.Exchange(t1,mgt.Count()-1);
@@ -7440,7 +7462,7 @@ void add_transfrag_to_path(int t,GBitVec& tforlater,int& ntforlater, GPVec<CMTra
 	//if(merge_onpath(mgt[t]->transfrag,mgt[t]->nf,mgt[t]->nl,pathpat,min,max,no2gnode,gno,gpos)) { // I can add the transfrag if it's on path
 	if(merge_topath(mgt[t]->transfrag,mgt[t]->nf,mgt[t]->nl,pathpat,min,max,no2gnode,gno,gpos)) { // I can add the transfrag if it's on path
 
-		pathpat = pathpat | mgt[t]->transfrag->pattern;
+		pathpat |= mgt[t]->transfrag->pattern;
 		cov+=mgt[t]->transfrag->abundance*mgt[t]->len;
 		mgt[t]->transfrag->abundance=0;
 		alltr.Add(t);
@@ -7603,7 +7625,7 @@ int merge_transfrags(int gno,GPVec<CGraphnode>& no2gnode, GPVec<CMTransfrag>& mg
 
 		for(int t2=start;t2<mgt.Count();t2++) if(mgt[t2]->transfrag->nodes[0] && mgt[t2]->transfrag->nodes.Last()<gno-1 && mgt[t2]->transfrag->abundance) { // only if the transfrag wasn't used already
 			if(mgt[t2]->transfrag->nodes[mgt[t2]->nl]<min || mgt[t2]->transfrag->nodes[mgt[t2]->nf]>max) { tforlater[t2]=1; ntforlater++;}
-			else if((mgt[t2]->transfrag->pattern & pathpat) == mgt[t2]->transfrag->pattern) { // t2 is included in path seen so far
+			else if(pathpat.contains(mgt[t2]->transfrag->pattern)) { // t2 is included in path seen so far
 				cov+=mgt[t2]->transfrag->abundance*mgt[t2]->len;
 				mgt[t2]->transfrag->abundance=0;
 				alltr.Add(t2);
@@ -7688,7 +7710,7 @@ int merge_transfrags(int gno,GPVec<CGraphnode>& no2gnode, GPVec<CMTransfrag>& mg
 						if(overlaps_one_exon_only(localpred[j],localpred[i])) remove=true;
 						else if(!retained_intron && localpred[i].p->cov<localpred[j].p->cov) remove=true;
 					}
-					else if((localpred[i].b & localpred[j].b) == localpred[i].b) {
+					else if(localpred[j].b.contains(localpred[i].b)) {
 						if(has_retained_intron(localpred[j],localpred[i],gno,gpos)) {
 							if(!retained_intron && localpred[i].p->cov<localpred[j].p->cov) remove=true;
 						}
@@ -8249,7 +8271,7 @@ bool fwd_to_sink_fast_long(int i,GVec<int>& path,int& minpath,int& maxpath,GBitV
 	if(pos) pathpat[*pos]=1;
 	//else GError("Found parent-child %d-%d not linked by edge\n",i,maxc);
 	if(tmax>-1) {
-		pathpat=pathpat | transfrag[tmax]->pattern;
+		pathpat |= transfrag[tmax]->pattern;
 		if(transfrag[tmax]->nodes[0]<minpath) minpath=transfrag[tmax]->nodes[0];
 		if(transfrag[tmax]->nodes.Last()>maxpath) maxpath=transfrag[tmax]->nodes.Last();
 	}
@@ -8472,7 +8494,7 @@ bool back_to_source_fast_long(int i,GVec<int>& path,int& minpath,int& maxpath,GB
 	if(pos) pathpat[*pos]=1;
 	//else GError("Found parent-child %d-%d not linked by edge\n",maxp,i);
 	if(tmax>-1) {
-		pathpat=pathpat | transfrag[tmax]->pattern;
+		pathpat |= transfrag[tmax]->pattern;
 		if(transfrag[tmax]->nodes[0]<minpath) minpath=transfrag[tmax]->nodes[0];
 		if(transfrag[tmax]->nodes.Last()>maxpath) maxpath=transfrag[tmax]->nodes.Last();
 	}
@@ -8909,7 +8931,7 @@ double long_max_flow(int gno,GVec<int>& path,GBitVec& istranscript,GPVec<CTransf
 			//if(transfrag[t]->nodes.Count()==1) continue; // skip one node transcripts Le
 			if(transfrag[tf]->guide && transfrag[t]->guide && t!=tf) {} // if  tf is guide then I do not use other guides with it
 			else if(transfrag[t]->longread && transfrag[t]->nodes[0]==path[i] && transfrag[t]->abundance &&
-					(istranscript[t] || ((pathpat & transfrag[t]->pattern)==transfrag[t]->pattern && (transfrag[t]->nodes[0] || transfrag[t]->nodes[1]==path[1])))) {
+					(istranscript[t] || (pathpat.contains(transfrag[t]->pattern) && (transfrag[t]->nodes[0] || transfrag[t]->nodes[1]==path[1])))) {
 			//if(transfrag[t]->nodes[0]==path[i] && transfrag[t]->abundance && (istranscript[t] || ((pathpat & transfrag[t]->pattern)==transfrag[t]->pattern))) {
 				bool keeptr=true;
 				if(i==0) max_fl=transfrag[t]->abundance; // this is the flow from source on this path
@@ -9122,7 +9144,7 @@ float push_max_flow(int gno,GVec<int>& path,GBitVec& istranscript,GPVec<CTransfr
 				else if(transfrag[t]->nodes.Last()==path.Last()) {
 					if(transfrag[t]->nodes[0]==path[n-2]) keeptr=true;
 				}
-				else if(transfrag[t]->nodes[0]==path[i] && ((pathpat & transfrag[t]->pattern)==transfrag[t]->pattern)) { // only need to check transfrag the first time I encounter it
+				else if(transfrag[t]->nodes[0]==path[i] && pathpat.contains(transfrag[t]->pattern)) { // only need to check transfrag the first time I encounter it
 					keeptr=true;
 
 					if(longreads) { // an extremely gapped transcript should not be considered to support path (I am doing this for longreads but it might work for paired reads too
@@ -9418,7 +9440,7 @@ float push_guide_maxflow(int gno,GVec<int>& path,GBitVec& istranscript,GPVec<CTr
 			int t=no2gnode[path[i]]->trf[j];
 			if(transfrag[t]->abundance) {
 				//fprintf(stderr,"Consider transcript %d with abundance %f for node %d\n",t,transfrag[t]->abundance,path[i]);
-				if(istranscript[t] || ((pathpat & transfrag[t]->pattern)==transfrag[t]->pattern)) { // transcript on path
+				if(istranscript[t] || pathpat.contains(transfrag[t]->pattern)) { // transcript on path
 					istranscript[t]=1;
 					//fprintf(stderr,"...on path\n");
 
@@ -9541,11 +9563,11 @@ float guidepushflow(int g,GVec<CGuide>& guidetrf,int gno,GBitVec& istranscript,G
 		for(int j=0;j<nt;j++) {
 			int t=no2gnode[pathi]->trf[j];
 			if(transfrag[t]->abundance) {
-				if(istranscript[t] || ((guidetrf[g].trf->pattern & transfrag[t]->pattern)==transfrag[t]->pattern)) { // transcript on path
+				if(istranscript[t] || guidetrf[g].trf->pattern.contains(transfrag[t]->pattern)) { // transcript on path
 					istranscript[t]=1;
 					// check if there are other guides sharing this transcript so that I can allocate proportionally to guide abundances
 					double totalcov=guidetrf[g].trf->abundance;
-					for(int r=g-1;r>=0;r--) if((guidetrf[r].trf->pattern & transfrag[t]->pattern)==transfrag[t]->pattern) {
+					for(int r=g-1;r>=0;r--) if(guidetrf[r].trf->pattern.contains(transfrag[t]->pattern)) {
 						totalcov+=guidetrf[r].trf->abundance;
 					}
 					float prop=1;
@@ -10177,7 +10199,7 @@ void parse_trflong(int gno,int geneno,char sign,GVec<CTransfrag> &keeptrf,GVec<i
 										path = newpath;
 										maxp = tlast;
 										lastnode = path.Count()-2; // update end index
-										pathpat = pathpat | transfrag[t]->pattern;
+										pathpat |= transfrag[t]->pattern;
 									}
 								}
 							}
@@ -10217,7 +10239,7 @@ void parse_trflong(int gno,int geneno,char sign,GVec<CTransfrag> &keeptrf,GVec<i
 									minp = tfirst;
 									startnode = 1;             // first interior index
 									lastnode = path.Count()-2;   // update end index
-									pathpat = pathpat | transfrag[t]->pattern;
+									pathpat |= transfrag[t]->pattern;
 									maxi = minp;
 								}
 							}
@@ -10251,7 +10273,7 @@ void parse_trflong(int gno,int geneno,char sign,GVec<CTransfrag> &keeptrf,GVec<i
 									pathpat[gno-1]=1;
 								}
 								// preserve transcript's allowed pattern
-								pathpat = pathpat | transfrag[t]->pattern;
+								pathpat |= transfrag[t]->pattern;
 								// refresh bounds and indices for downstream logic
 								if (path.Count()>=2) {
 									minp = path[1];
@@ -11445,7 +11467,7 @@ float nascent2max_flow(int gno,int sno,CTransfrag *nascent,GBitVec& istranscript
 					}
 				}
 
-				if(istranscript[t] || ((nascent->pattern & transfrag[t]->pattern)==transfrag[t]->pattern)) { // transcript on path
+				if(istranscript[t] || nascent->pattern.contains(transfrag[t]->pattern)) { // transcript on path
 					istranscript[t]=1;
 
 					//fprintf(stderr,"istranscript[%d] with abund=%f and nascent->nodes[%d]=%d and nodes[0]=%d and nodes[last]=%d\n",t,transfrag[t]->abundance,i,nascent->nodes[i],transfrag[t]->nodes[0],transfrag[t]->nodes.Last());
@@ -12346,8 +12368,8 @@ void process_refguides(int gno,int edgeno,GIntHash<int>& gpos,int& lastgpos,GPVe
 					}
 				}
 
-				if(edgecompatible && ((trpattern & guidetrf[g].trf->pattern) == trpattern)) { // transfrag is completely included in guide
-					guidepattern = guidepattern | trpattern;
+				if(edgecompatible && guidetrf[g].trf->pattern.contains(trpattern)) { // transfrag is completely included in guide
+					guidepattern |= trpattern;
 					// compute guideabundance here
 					for(int i=tstart; i<=tend;i++) guideabundance+=transfrag[t]->abundance*no2gnode[transfrag[t]->nodes[i]]->len();
 				}
@@ -12381,7 +12403,7 @@ void process_refguides(int gno,int edgeno,GIntHash<int>& gpos,int& lastgpos,GPVe
 		while(p<g) { // here I assume that the guides are sorted by pattern
 			//CTransfrag guideg=guidetrf[g];
 			//CTransfrag guidep=guidetrf[p];
-			if((guidetrf[g].trf->pattern & guidetrf[p].trf->pattern)==guidetrf[g].trf->pattern) {
+			if(guidetrf[p].trf->pattern.contains(guidetrf[g].trf->pattern)) {
 				if(!isNascent(guides[guidetrf[p].g]) ) { // don't allow the longer guide to be nascent
 					if(!isNascent(guides[guidetrf[g].g]) && !longreads && !mixedMode) { // --> added an exclusiong for longreads and mixedMode (is this correct?)
 						guidetrf[g].trf->real=false;  // this marks a guide that is included in another one -> I might want to swap them if they have the same abundance
@@ -12554,7 +12576,7 @@ void process_refguides(int gno,int edgeno,GIntHash<int>& gpos,int& lastgpos,GPVe
 bool is_reference_transcript(GVec<CGuide>& guidetrf,GBitVec& pattern) {
 	int g=0;
 	while(g<guidetrf.Count()){
-		if((guidetrf[g].trf->pattern & pattern)==pattern) return true;
+		if(guidetrf[g].trf->pattern.contains(pattern)) return true;
 		g++;
 	}
 	return false;
@@ -12968,7 +12990,7 @@ void guides_pushmaxflow_onestep(int gno,GIntHash<int>& gpos,GPVec<CGraphnode>& n
 
 					bool overlap=false;
 					for(int r=ng-1;r>g;r--) if(guidepred[guidetrf[r].g]>-1){
-						if((guidetrf[g].trf->pattern & guidetrf[r].trf->pattern)==guidetrf[g].trf->pattern) {
+						if(guidetrf[r].trf->pattern.contains(guidetrf[g].trf->pattern)) {
 							if(guides[guidetrf[r].g]->exons.Count()>1) {
 								overlap=true;
 								break;
@@ -13202,7 +13224,7 @@ int guides_pushmaxflow(int gno,int edgeno,GIntHash<int>& gpos,GPVec<CGraphnode>&
 
 						for(int i=0;i<ng;i++) {
 							int g=nodeinfo[n].guide[i].idx;
-							if(((transfrag[t]->pattern) & guidetrf[g].trf->pattern) == transfrag[t]->pattern) { // transfrag is compatible to guide
+							if(guidetrf[g].trf->pattern.contains(transfrag[t]->pattern)) { // transfrag is compatible to guide
 								compguide.Add(i); // make sure that later you change it to guidetrf indexes
 								guidepat[g]=1;
 								if(terminal_in && !nodeinfo[n].guide[i].terminal_in) terminal_in=false;
@@ -15781,6 +15803,7 @@ int build_graphs(BundleData* bdata) {
 #endif
 */
 
+		CFragmentPatternScratch fragment_scratch(bnode[0].Count(),bnode[2].Count());
 		// I can clean up some data here:
     	for(int sno=0;sno<3;sno++) {
     		int n=bnode[sno].Count();
@@ -15809,12 +15832,12 @@ int build_graphs(BundleData* bdata) {
     				if(np>-1) {
     					single_count-=readlist[n]->pair_count[j];
     					if(n<np) {
-    						get_fragment_pattern(readlist,n,np,readlist[n]->pair_count[j],readgroup,merge,group2bundle,bundle2graph,graphno,edgeno,gpos,no2gnode,transfrag,tr2no,group);
+						get_fragment_pattern(readlist,n,np,readlist[n]->pair_count[j],readgroup,merge,group2bundle,bundle2graph,graphno,edgeno,gpos,no2gnode,transfrag,tr2no,group,fragment_scratch);
     					}
     				}
     			}
     			if(single_count>epsilon) {
-    				get_fragment_pattern(readlist,n,-1,single_count,readgroup,merge,group2bundle,bundle2graph,graphno,edgeno,gpos,no2gnode,transfrag,tr2no,group);
+				get_fragment_pattern(readlist,n,-1,single_count,readgroup,merge,group2bundle,bundle2graph,graphno,edgeno,gpos,no2gnode,transfrag,tr2no,group,fragment_scratch);
     			}
 			//}
     	}
